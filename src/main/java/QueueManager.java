@@ -14,6 +14,7 @@ public class QueueManager extends AwsManager {
     private List<String> qUrls;
 
     public QueueManager() {
+
         super();
         sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
@@ -36,6 +37,7 @@ public class QueueManager extends AwsManager {
 
     public List<Message> getMessage(@Nullable String queueName, @Nullable String queueUrl, boolean create) {
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(queueUrl);
+        receiveMessageRequest.withWaitTimeSeconds(Constants.TIMEOUT);
         if(queueUrl!=null && create && getOrCreate(queueName, queueUrl)!=null) {
             return sqs.receiveMessage(receiveMessageRequest).getMessages();
         }
@@ -56,4 +58,10 @@ public class QueueManager extends AwsManager {
     public List<String> getQueues() {
         return qUrls;
     }
+
+    public List<String> getqUrls() {
+        return qUrls;
+    }
+
+
 }
