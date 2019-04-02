@@ -7,13 +7,10 @@ import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
 
 import javax.annotation.Nullable;
-import java.io.Serializable;
 import java.util.List;
 
 public class EcManager {
-        public static String JAVA8IMG = "ami-0b8962a37670b6d05";
         private AWSCredentialsProvider credentialsProvider;
-        private static final String DEFAULT_REGION="us-east-1";
         private String region;
     public EcManager(String region) {
         credentialsProvider = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());
@@ -22,7 +19,7 @@ public class EcManager {
 
     public EcManager() {
         credentialsProvider = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());
-        this.region=DEFAULT_REGION;
+        this.region=Constants.DEFAULT_REGION;
     }
 
     //    public List<Instance> initMechines(int num, List<String> userData){
