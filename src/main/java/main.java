@@ -1,5 +1,6 @@
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.sqs.model.Message;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -22,7 +23,7 @@ public class main {
     public static EcFeeder feeder;
     public static EcListener listener;
     public static String mainQueue;
-    public static Boolean isTerminated = false;
+    public static MutableBoolean isTerminated = new MutableBoolean();
     public static HashMap<String,ec2Status> ec2StatusMapping = new HashMap<>();
 
     public static void main(String [] args){
@@ -30,6 +31,7 @@ public class main {
         String workQueue = getQueue("workQueue", Constants.WORKQUEUE);
         String resultQueue = getQueue("resultQueue", Constants.RESULT_QUEUE);
         queueM = new QueueManager();
+        isTerminated.setFalse();
         EcManager ecman = new EcManager();
         List<Instance> ecs = ecman.getActiveEc2s();
         ecs.forEach(s->ec2StatusMapping.put(s.getInstanceId(),ec2Status.IDLE));
@@ -40,13 +42,9 @@ public class main {
         t1.start();
         Thread listen = new Thread(listener);
         listen.start();
-        listeningloop(main::handleMessage,mainQueue);
+        listeningloop(main::handleMessage,mainQueue, isTerminated);
         //ExecutorService executor = Executors.newFixedThreadPool(2);
-//        try {
-//            String base64UserData = new String( Base64.encodeBase64( userData.getBytes( "UTF-8" )), "UTF-8" );
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
+
 //        EcManager man = new EcManager();
 //        List<Instance> instances =  man.createEc2(2,Constants.JAVA8IMG,null);
 //        if(instances!=null) {
@@ -57,6 +55,9 @@ public class main {
 
     private static void handleMessage(Message msg){
         System.out.println("*******main: "+msg.getBody());
+        if(msg.getMessageAttributes().get(Constants.TYPE_FIELD).getStringValue().equals(Constants.MESSAGE_TYPE.TERMINATION.name())){
+            isTerminated.setTrue();
+        }
         commandsQueue.add(msg);
         queueM.deleteMsg(mainQueue, msg);
     }
@@ -69,9 +70,9 @@ public class main {
         return queueM.getOrCreate(name,url);
     }
 
-    public static void listeningloop(Consumer<Message> cons, String queueUrl){
+    public static void listeningloop(Consumer<Message> cons, String queueUrl, MutableBoolean stopIndicator){
         List<Message> msgs = new LinkedList<>();
-        while(true){
+        while(!stopIndicator.booleanValue()){
             try{
             msgs = queueM.getMessage(null,queueUrl,false);
             if(msgs.size()>0) {

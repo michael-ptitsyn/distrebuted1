@@ -38,7 +38,7 @@ public class QueueManager extends AwsManager {
 
     public List<Message> getMessage(@Nullable String queueName, @Nullable String queueUrl, boolean create) {
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(queueUrl);
-        receiveMessageRequest.withWaitTimeSeconds(Constants.TIMEOUT);
+        receiveMessageRequest.withWaitTimeSeconds(Constants.TIMEOUT).withMessageAttributeNames("All");
         if(queueUrl!=null && create && getOrCreate(queueName, queueUrl)!=null) {
             return sqs.receiveMessage(receiveMessageRequest).getMessages();
         }

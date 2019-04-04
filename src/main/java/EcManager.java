@@ -3,8 +3,10 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
+import org.apache.commons.codec.binary.Base64;
 
 import javax.annotation.Nullable;
+import java.io.UnsupportedEncodingException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,7 +41,8 @@ public class EcManager extends AwsManager {
             RunInstancesRequest request = new RunInstancesRequest(image, num, num);
             request.withKeyName(Constants.KEY_PAIR);
             if (userData != null) {
-                request.withUserData(userData);
+                String base64UserData = new String(Base64.encodeBase64( userData.getBytes( "UTF-8" )), "UTF-8" );
+                request.withUserData(base64UserData);
             }
             request.setInstanceType(InstanceType.T1Micro.toString());
             List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();
@@ -47,8 +50,11 @@ public class EcManager extends AwsManager {
             return instances;
         } catch (AmazonServiceException ase) {
             handleErrors(ase);
-            return null;
         }
+        catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public List<Instance> getActiveEc2s() {

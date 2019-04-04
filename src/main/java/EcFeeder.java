@@ -60,10 +60,10 @@ public class EcFeeder implements Runnable {
     private void handleTask(Message cmd) throws IllegalArgumentException {
         //TODO syncronize isTerminated
         List<Instance> newEcs;
-        if(!main.isTerminated) {
+        if(!main.isTerminated.booleanValue()) {
             numberOfMsgs = 0;
             String[] splited = cmd.getBody().split("\t");
-            main.isTerminated = splited.length > 2 && splited[2].equals("terminate");
+            main.isTerminated.setValue(splited.length > 2 && splited[2].equals("terminate"));
             String inputUrl = splited[0];
             String outputFileName = splited[1];
             downloadFromUrl(inputUrl)
@@ -72,7 +72,7 @@ public class EcFeeder implements Runnable {
                     });
             int neededEcs = (int) Math.ceil(numberOfMsgs / Constants.DEFAULT_MSG_COMP_RATION) - main.ec2Count;
             if (numberOfMsgs > 0 && neededEcs > 0) {
-                newEcs = ecManager.createEc2(neededEcs, Constants.JAVA8IMG, null);
+                newEcs = ecManager.createEc2(neededEcs, Constants.JAVA8IMG, Constants.WORKER_USER_SCRIPT);
                 if(newEcs!=null){
                     updateStatusMap(newEcs);
                 }

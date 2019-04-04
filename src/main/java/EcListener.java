@@ -1,4 +1,5 @@
 import com.amazonaws.services.sqs.model.Message;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 
 import java.util.Map;
 
@@ -11,8 +12,11 @@ public class EcListener implements Runnable {
     private String result;
     private int doneCounter;
     private QueueManager queueM;
+    private MutableBoolean kill;
     public EcListener(String queueUrl, QueueManager qManager) {
         queueM = qManager;
+        kill = new MutableBoolean();
+        kill.setFalse();
         this.queueUrl = queueUrl;
     }
 
@@ -20,7 +24,7 @@ public class EcListener implements Runnable {
     //TODO we dont know when to stop
     @Override
     public void run() {
-            main.listeningloop(this::handleMsg, queueUrl);
+            main.listeningloop(this::handleMsg, queueUrl, kill);
     }
 
     private void handleMsg(Message msg){

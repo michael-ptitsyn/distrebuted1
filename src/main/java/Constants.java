@@ -15,7 +15,19 @@ public class Constants {
     public enum  MESSAGE_TYPE {
         STATUS_UPDATE,
         TASK,
-        TERMONATION,
+        TERMINATION,
         TASK_RESULT
-    };
+    }
+    public static final String WORKER_USER_SCRIPT = "#!/bin/bash\n" +
+            "yum update -y\n" +
+            "amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2\n" +
+            "yum install -y httpd mariadb-server\n" +
+            "systemctl start httpd\n" +
+            "systemctl enable httpd\n" +
+            "usermod -a -G apache ec2-user\n" +
+            "chown -R ec2-user:apache /var/www\n" +
+            "chmod 2775 /var/www\n" +
+            "find /var/www -type d -exec chmod 2775 {} \\;\n" +
+            "find /var/www -type f -exec chmod 0664 {} \\;\n" +
+            "echo \"<?php phpinfo(); ?>\" > /var/www/html/phpinfo.php";
 }
