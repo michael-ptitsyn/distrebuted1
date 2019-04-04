@@ -19,12 +19,13 @@ public class main {
     final Semaphore ec2CountLock = new Semaphore(1, true);
     public static int ec2Count=0;
     public static S3Client s3client = new S3Client();
-    public static Queue<Message> commandsQueue = new ConcurrentLinkedQueue<>();
+    public static final Queue<Message> commandsQueue = new ConcurrentLinkedQueue<>();
     public static EcFeeder feeder;
     public static EcListener listener;
     public static String mainQueue;
     public static MutableBoolean isTerminated = new MutableBoolean();
     public static HashMap<String,ec2Status> ec2StatusMapping = new HashMap<>();
+    public static  ec2StatusMapping = new HashMap<>();
 
     public static void main(String [] args){
         mainQueue = getQueue("mainQueue", Constants.MAINQUEUE);
@@ -57,8 +58,17 @@ public class main {
         System.out.println("*******main: "+msg.getBody());
         if(msg.getMessageAttributes().get(Constants.TYPE_FIELD).getStringValue().equals(Constants.MESSAGE_TYPE.TERMINATION.name())){
             isTerminated.setTrue();
+            synchronized (commandsQueue) {
+                feeder.setKill();
+                commandsQueue.notifyAll();
+            }
         }
-        commandsQueue.add(msg);
+        else if(msg.getMessageAttributes().get(Constants.TYPE_FIELD).getStringValue().equals(Constants.MESSAGE_TYPE.TASK.name())){
+            synchronized (commandsQueue) {
+                commandsQueue.add(msg);
+                commandsQueue.notifyAll();
+            }
+        }
         queueM.deleteMsg(mainQueue, msg);
     }
 
@@ -76,10 +86,7 @@ public class main {
             try{
             msgs = queueM.getMessage(null,queueUrl,false);
             if(msgs.size()>0) {
-                synchronized (commandsQueue) {
                     msgs.forEach(cons);
-                    commandsQueue.notify();
-                }
             }
             else{
                 try {

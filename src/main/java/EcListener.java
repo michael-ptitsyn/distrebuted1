@@ -7,16 +7,14 @@ import java.util.Map;
  * created to handle exceptions
  * will listen the results queue and created the html
  * **/
-public class EcListener implements Runnable {
+public class EcListener extends EcRunnble implements Runnable {
     private String queueUrl;
     private String result;
     private int doneCounter;
     private QueueManager queueM;
-    private MutableBoolean kill;
     public EcListener(String queueUrl, QueueManager qManager) {
         queueM = qManager;
         kill = new MutableBoolean();
-        kill.setFalse();
         this.queueUrl = queueUrl;
     }
 

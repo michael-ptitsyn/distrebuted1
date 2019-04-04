@@ -12,7 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 
-public class EcFeeder implements Runnable {
+public class EcFeeder extends EcRunnble implements Runnable {
     private Queue<Message> commandsQueue; //main thread to feed queue
     private QueueManager qManager;
     private S3Client s3Client;
@@ -24,7 +24,7 @@ public class EcFeeder implements Runnable {
         this.commandsQueue = commandsQueue;
         numberOfMsgs = 0;
         qManager = manager;
-        this.ecManager=ecManager;
+        this.ecManager = ecManager;
         workQueue = queueUrl;
         this.s3Client = client;
     }
@@ -37,7 +37,7 @@ public class EcFeeder implements Runnable {
     public void run() {
         String cmd;
         synchronized (commandsQueue) {
-            while (true) {
+            while (!kill.booleanValue()) {
                 try {
                     if (commandsQueue.isEmpty()) {
                         try {
@@ -57,32 +57,32 @@ public class EcFeeder implements Runnable {
 
     }
 
+
+
     private void handleTask(Message cmd) throws IllegalArgumentException {
         //TODO syncronize isTerminated
         List<Instance> newEcs;
-        if(!main.isTerminated.booleanValue()) {
-            numberOfMsgs = 0;
-            String[] splited = cmd.getBody().split("\t");
-            main.isTerminated.setValue(splited.length > 2 && splited[2].equals("terminate"));
-            String inputUrl = splited[0];
-            String outputFileName = splited[1];
-            downloadFromUrl(inputUrl)
-                    .forEachRemaining(s -> {
-                        packAndSend(s, workQueue);
-                    });
-            int neededEcs = (int) Math.ceil(numberOfMsgs / Constants.DEFAULT_MSG_COMP_RATION) - main.ec2Count;
-            if (numberOfMsgs > 0 && neededEcs > 0) {
-                newEcs = ecManager.createEc2(neededEcs, Constants.JAVA8IMG, Constants.WORKER_USER_SCRIPT);
-                if(newEcs!=null){
-                    updateStatusMap(newEcs);
-                }
-                main.ec2Count += neededEcs;
+        numberOfMsgs = 0;
+        String[] splited = cmd.getBody().split("\t");
+        main.isTerminated.setValue(splited.length > 2 && splited[2].equals("terminate"));
+        String inputUrl = splited[0];
+        String outputFileName = splited[1];
+        downloadFromUrl(inputUrl)
+                .forEachRemaining(s -> {
+                    packAndSend(s, workQueue);
+                });
+        int neededEcs = (int) Math.ceil(numberOfMsgs / Constants.DEFAULT_MSG_COMP_RATION) - main.ec2Count;
+        if (numberOfMsgs > 0 && neededEcs > 0) {
+            newEcs = ecManager.createEc2(neededEcs, Constants.JAVA8IMG, Constants.WORKER_USER_SCRIPT);
+            if (newEcs != null) {
+                updateStatusMap(newEcs);
             }
+            main.ec2Count += neededEcs;
         }
     }
 
-    private void updateStatusMap(List<Instance>newEc2s){
-        for(Instance incs:newEc2s){
+    private void updateStatusMap(List<Instance> newEc2s) {
+        for (Instance incs : newEc2s) {
             main.ec2StatusMapping.put(incs.getInstanceId(), main.ec2Status.IDLE);
         }
     }
