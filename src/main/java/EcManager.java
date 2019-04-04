@@ -1,25 +1,33 @@
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
+import org.apache.commons.codec.binary.Base64;
 
 import javax.annotation.Nullable;
+import java.io.UnsupportedEncodingException;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class EcManager {
-        private AWSCredentialsProvider credentialsProvider;
-        private String region;
+public class EcManager extends AwsManager {
+    private AWSCredentialsProvider credentialsProvider;
+    private String region;
+    private List<Instance> mechines;
+    private AmazonEC2 ec2;
+
     public EcManager(String region) {
-        credentialsProvider = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());
-        this.region=region;
+        super();
+        this.region = region;
+        ec2 = AmazonEC2ClientBuilder.standard()
+                .withCredentials(credentialsProvider)
+                .withRegion(region)
+                .build();
     }
 
     public EcManager() {
-        credentialsProvider = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());
-        this.region=Constants.DEFAULT_REGION;
+        this(Constants.DEFAULT_REGION);
     }
 
     //    public List<Instance> initMechines(int num, List<String> userData){
@@ -28,16 +36,13 @@ public class EcManager {
 //                .collect(Collectors.toList());
 //    }
     @Nullable
-    public List<Instance> createEc2(int num, String image, @Nullable String userData){
-        AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard()
-                .withCredentials(credentialsProvider)
-                .withRegion(region)
-                .build();
+    public List<Instance> createEc2(int num, String image, @Nullable String userData) {
         try {
-            // Basic 32-bit Amazon Linux AMI 1.0 (AMI Id: ami-08728661)
             RunInstancesRequest request = new RunInstancesRequest(image, num, num);
-            if(userData!=null) {
-                request.withUserData(userData);
+            request.withKeyName(Constants.KEY_PAIR);
+            if (userData != null) {
+                String base64UserData = new String(Base64.encodeBase64( userData.getBytes( "UTF-8" )), "UTF-8" );
+                request.withUserData(base64UserData);
             }
             request.setInstanceType(InstanceType.T1Micro.toString());
             List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();
@@ -45,17 +50,38 @@ public class EcManager {
             return instances;
         } catch (AmazonServiceException ase) {
             handleErrors(ase);
-            return null;
         }
+        catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public List<Instance> getActiveEc2s() {
+        List<Instance> result = new LinkedList<>();
+        try {
+            boolean done = false;
+            DescribeInstancesRequest request = new DescribeInstancesRequest();
+            while (!done) {
+                DescribeInstancesResult response = ec2.describeInstances(request);
+                for (Reservation reservation : response.getReservations()) {
+                    result.addAll(reservation.getInstances().stream().filter(s->s.getPublicIpAddress()!= null).collect(Collectors.toList()));
+                }
+                request.setNextToken(response.getNextToken());
+                if (response.getNextToken() == null) {
+                    done = true;
+                }
+            }
+        }catch (AmazonServiceException ase) {
+            handleErrors(ase);
+        }
+        return result;
     }
 
     @Nullable
-    public List<InstanceStateChange> terminateEc2(List<String> instanceIds){
+    public List<InstanceStateChange> terminateEc2(List<String> instanceIds) {
 
-        AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard()
-                .withCredentials(credentialsProvider)
-                .withRegion(region)
-                .build();
+
         try {
             // Basic 32-bit Amazon Linux AMI 1.0 (AMI Id: ami-08728661)
             TerminateInstancesRequest request = new TerminateInstancesRequest(instanceIds);
@@ -68,12 +94,6 @@ public class EcManager {
         }
     }
 
-    private void handleErrors(AmazonServiceException ase){
-        System.out.println("Caught Exception: " + ase.getMessage());
-        System.out.println("Reponse Status Code: " + ase.getStatusCode());
-        System.out.println("Error Code: " + ase.getErrorCode());
-        System.out.println("Request ID: " + ase.getRequestId());
-    }
 
 //    public static void main(String[] args) throws Exception {
 //        AWSCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());

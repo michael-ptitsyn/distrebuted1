@@ -1,5 +1,6 @@
 import java.util.List;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -14,6 +15,7 @@ public class QueueManager extends AwsManager {
     private List<String> qUrls;
 
     public QueueManager() {
+
         super();
         sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
@@ -36,6 +38,7 @@ public class QueueManager extends AwsManager {
 
     public List<Message> getMessage(@Nullable String queueName, @Nullable String queueUrl, boolean create) {
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(queueUrl);
+        receiveMessageRequest.withWaitTimeSeconds(Constants.TIMEOUT).withMessageAttributeNames("All");
         if(queueUrl!=null && create && getOrCreate(queueName, queueUrl)!=null) {
             return sqs.receiveMessage(receiveMessageRequest).getMessages();
         }
@@ -53,13 +56,34 @@ public class QueueManager extends AwsManager {
         return sqs.sendMessage(msg);
     }
 
+    public SendMessageResult sendMessage(Map<String, MessageAttributeValue> attributes, String url) {
+        SendMessageRequest sendMessageRequest = new SendMessageRequest();
+        sendMessageRequest.withMessageBody("empty on purpus");
+        sendMessageRequest.withQueueUrl(url);
+        sendMessageRequest.withMessageAttributes(attributes);
+        return sqs.sendMessage(sendMessageRequest);
+    }
+
     public DeleteQueueResult deleteQueue(String url, String message) {
         sqs.deleteQueue(new DeleteQueueRequest(url));
         qUrls.remove(url);
         return sqs.deleteQueue(new DeleteQueueRequest(url));
     }
 
+    public DeleteMessageResult deleteMsg(String queueUrl, Message msg){
+        String messageReceiptHandle = msg.getReceiptHandle();
+        return sqs.deleteMessage(new DeleteMessageRequest(queueUrl, messageReceiptHandle));
+    }
+
+
+
     public List<String> getQueues() {
         return qUrls;
     }
+
+    public List<String> getqUrls() {
+        return qUrls;
+    }
+
+
 }
