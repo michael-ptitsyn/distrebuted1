@@ -1,3 +1,4 @@
+import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.sqs.model.Message;
 
 import java.util.*;
@@ -19,6 +20,7 @@ public class main {
     public static S3Client s3client = new S3Client();
     public static Queue<Message> commandsQueue = new ConcurrentLinkedQueue<>();
     public static EcFeeder feeder;
+    public static EcListener listener;
     public static String mainQueue;
     public static Boolean isTerminated = false;
     public static HashMap<String,ec2Status> ec2StatusMapping = new HashMap<>();
@@ -26,14 +28,19 @@ public class main {
     public static void main(String [] args){
         mainQueue = getQueue("mainQueue", Constants.MAINQUEUE);
         String workQueue = getQueue("workQueue", Constants.WORKQUEUE);
-        String resultQueue = getQueue("resultQueue", Constants.WORKQUEUE);
+        String resultQueue = getQueue("resultQueue", Constants.RESULT_QUEUE);
         queueM = new QueueManager();
         EcManager ecman = new EcManager();
-        ec2Count = ecman.getActiveEc2s().size();
+        List<Instance> ecs = ecman.getActiveEc2s();
+        ecs.forEach(s->ec2StatusMapping.put(s.getInstanceId(),ec2Status.IDLE));
+        ec2Count = ecs.size();
+        listener = new EcListener(resultQueue, queueM);
         feeder = new EcFeeder(commandsQueue, queueM, s3client, new EcManager(), workQueue);
         Thread t1 = new Thread(feeder);
         t1.start();
-        liteningloop(main::handleMessage,mainQueue);
+        Thread listen = new Thread(listener);
+        listen.start();
+        listeningloop(main::handleMessage,mainQueue);
         //ExecutorService executor = Executors.newFixedThreadPool(2);
 //        try {
 //            String base64UserData = new String( Base64.encodeBase64( userData.getBytes( "UTF-8" )), "UTF-8" );
@@ -48,7 +55,7 @@ public class main {
 
     }
 
-    public static void handleMessage(Message msg){
+    private static void handleMessage(Message msg){
         System.out.println("*******main: "+msg.getBody());
         commandsQueue.add(msg);
         queueM.deleteMsg(mainQueue, msg);
@@ -62,14 +69,14 @@ public class main {
         return queueM.getOrCreate(name,url);
     }
 
-    public static void liteningloop(Consumer<Message> cons, String queueUrl){
+    public static void listeningloop(Consumer<Message> cons, String queueUrl){
         List<Message> msgs = new LinkedList<>();
         while(true){
             try{
             msgs = queueM.getMessage(null,queueUrl,false);
             if(msgs.size()>0) {
                 synchronized (commandsQueue) {
-                    msgs.forEach(main::handleMessage);
+                    msgs.forEach(cons);
                     commandsQueue.notify();
                 }
             }

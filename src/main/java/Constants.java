@@ -5,7 +5,7 @@ public class Constants {
     public static final int TIMEOUT=10;
     public static final String MAINQUEUE="https://sqs.us-east-1.amazonaws.com/993541871317/MyQueue662d7826-4f15-409b-97ef-654c2b005011";
     public static final String WORKQUEUE="https://sqs.us-east-1.amazonaws.com/993541871317/MyQueue32e6f304-f5e2-453e-adc6-c687428d438b";
-    public static final String RESULT_QUEUE="https://sqs.us-east-1.amazonaws.com/993541871317/MyQueue32e6f304-f5e2-453e-adc6-c687428d438b";
+    public static final String RESULT_QUEUE="https://sqs.us-east-1.amazonaws.com/993541871317/MyQueue119b949f-1461-4130-a018-7d4a0ebe6aac";
     public static final int THREAD_SLEEP=1000;
     public static final String BUCKET_NAME="michael-dror-distrebuted";
     public static final int DEFAULT_MSG_COMP_RATION=50;

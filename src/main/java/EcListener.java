@@ -1,6 +1,5 @@
 import com.amazonaws.services.sqs.model.Message;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -11,7 +10,9 @@ public class EcListener implements Runnable {
     private String queueUrl;
     private String result;
     private int doneCounter;
-    public EcListener(String queueUrl) {
+    private QueueManager queueM;
+    public EcListener(String queueUrl, QueueManager qManager) {
+        queueM = qManager;
         this.queueUrl = queueUrl;
     }
 
@@ -19,15 +20,24 @@ public class EcListener implements Runnable {
     //TODO we dont know when to stop
     @Override
     public void run() {
-            main.liteningloop(this::handleMsg, queueUrl);
+            main.listeningloop(this::handleMsg, queueUrl);
     }
 
     private void handleMsg(Message msg){
-        Map<String, String> msgMapping = msg.getAttributes();
-        if(msgMapping.get(Constants.TYPE_FIELD).equals(Constants.MESSAGE_TYPE.STATUS_UPDATE.name())){
-            main.ec2StatusMapping.put(msgMapping.get(Constants.ID_FIELD), main.ec2Status.valueOf(msg.getBody()));
+        try {
+            Map<String, String> msgMapping = msg.getAttributes();
+            String msgType = msgMapping.get(Constants.TYPE_FIELD);
+            if (msgType.equals(Constants.MESSAGE_TYPE.STATUS_UPDATE.name())) {
+                main.ec2StatusMapping.put(msgMapping.get(Constants.ID_FIELD), main.ec2Status.valueOf(msg.getBody()));
+            } else if (msgType.equals(Constants.MESSAGE_TYPE.TASK_RESULT.name())) {
+                result = result != null ? result + "\n" + msg.getBody() : msg.getBody();
+            }
         }
-
-        result=result!=null?result+"\n"+msg.getBody():msg.getBody();
+        catch (Exception ex){
+            throw ex;
+        }
+        finally {
+            queueM.deleteMsg(queueUrl, msg);
+        }
     }
 }
