@@ -4,6 +4,13 @@ public class EcTask {
     private String body;
     private int id;
 
+    public EcTask(String clientName, String result_url, String body, int id) {
+        this.clientName = clientName;
+        this.result_url = result_url;
+        this.body = body;
+        this.id = id;
+    }
+
     public String getClientName() {
         return clientName;
     }

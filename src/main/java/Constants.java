@@ -11,6 +11,7 @@ public class Constants {
     public static final int DEFAULT_MSG_COMP_RATION=50;
     public static final String KEY_PAIR = "ptitsyn_bgu";
     public static final String TYPE_FIELD = "type";
+    public static final String MAC_FIELD = "macAddress";
     public static final String ID_FIELD = "instanceId";
     public enum  MESSAGE_TYPE {
         STATUS_UPDATE,

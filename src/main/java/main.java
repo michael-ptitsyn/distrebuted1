@@ -25,7 +25,7 @@ public class main {
     public static String mainQueue;
     public static MutableBoolean isTerminated = new MutableBoolean();
     public static HashMap<String,ec2Status> ec2StatusMapping = new HashMap<>();
-    public static  ec2StatusMapping = new HashMap<>();
+    public static HashMap<String, List<EcTask>> taskMapping = new HashMap<>();
 
     public static void main(String [] args){
         mainQueue = getQueue("mainQueue", Constants.MAINQUEUE);
@@ -38,7 +38,7 @@ public class main {
         ecs.forEach(s->ec2StatusMapping.put(s.getInstanceId(),ec2Status.IDLE));
         ec2Count = ecs.size();
         listener = new EcListener(resultQueue, queueM);
-        feeder = new EcFeeder(commandsQueue, queueM, s3client, new EcManager(), workQueue);
+        feeder = new EcFeeder(commandsQueue, queueM, s3client, new EcManager(), workQueue, taskMapping);
         Thread t1 = new Thread(feeder);
         t1.start();
         Thread listen = new Thread(listener);

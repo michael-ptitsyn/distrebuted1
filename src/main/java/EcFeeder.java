@@ -19,14 +19,16 @@ public class EcFeeder extends EcRunnble implements Runnable {
     private String workQueue;
     private double numberOfMsgs;
     private EcManager ecManager;
+    private HashMap<String, List<EcTask>> taskMapping;
 
-    public EcFeeder(Queue<Message> commandsQueue, QueueManager manager, S3Client client, EcManager ecManager, String queueUrl) {
+    public EcFeeder(Queue<Message> commandsQueue, QueueManager manager, S3Client client, EcManager ecManager, String queueUrl, HashMap<String, List<EcTask>> tasks) {
         this.commandsQueue = commandsQueue;
         numberOfMsgs = 0;
         qManager = manager;
         this.ecManager = ecManager;
         workQueue = queueUrl;
         this.s3Client = client;
+        this.taskMapping = tasks;
     }
 
     public synchronized void addTask(Message command) {
@@ -69,7 +71,7 @@ public class EcFeeder extends EcRunnble implements Runnable {
         String outputFileName = splited[1];
         downloadFromUrl(inputUrl)
                 .forEachRemaining(s -> {
-                    packAndSend(s, workQueue);
+                    packAndSend(s, workQueue, cmd.getMessageAttributes().get(Constants.MAC_FIELD).toString());
                 });
         int neededEcs = (int) Math.ceil(numberOfMsgs / Constants.DEFAULT_MSG_COMP_RATION) - main.ec2Count;
         if (numberOfMsgs > 0 && neededEcs > 0) {
@@ -87,7 +89,7 @@ public class EcFeeder extends EcRunnble implements Runnable {
         }
     }
 
-    private void packAndSend(String msgLine, String queueUrl) {
+    private void packAndSend(String msgLine, String queueUrl, String clientId) {
         String[] parts = msgLine.split("\t");
         HashMap<String, MessageAttributeValue> attributes = new HashMap<>();
         MessageAttributeValue action = new MessageAttributeValue();
@@ -98,6 +100,8 @@ public class EcFeeder extends EcRunnble implements Runnable {
         url.withDataType("String");
         attributes.put("action", action);
         attributes.put("url", url);
+        int index = this.taskMapping.get(clientId)!=null?this.taskMapping.get(clientId).size():0;
+        this.taskMapping.get(clientId).add(new EcTask(clientId, null, null,index));
         qManager.sendMessage(attributes, queueUrl);
         numberOfMsgs++;
     }
