@@ -33,6 +33,34 @@
             <artifactId>guava</artifactId>
             <version>27.1-jre</version>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.apache.pdfbox/pdfbox -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.14</version>
+        </dependency>
+        <dependency>
+            <groupId>backport-util-concurrent</groupId>
+            <artifactId>backport-util-concurrent</artifactId>
+            <version>3.1</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.sun.pdfview/PDFRenderer -->
+        <dependency>
+            <groupId>com.sun.pdfview</groupId>
+            <artifactId>PDFRenderer</artifactId>
+            <version>0.9.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.kenai.nbpwr</groupId>
+            <artifactId>com-sun-pdfview</artifactId>
+            <version>1.0.5-201003191900</version>
+            <type>nbm</type>
+        </dependency>
+
+
     </dependencies>
 
 </project>

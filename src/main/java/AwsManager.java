@@ -6,6 +6,6 @@ public class AwsManager {
     protected AWSCredentialsProvider credentialsProvider;
 
     public AwsManager() {
-        this.credentialsProvider = credentialsProvider = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());
+        this.credentialsProvider = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());
     }
 }

@@ -22,12 +22,12 @@ public class QueueManager extends AwsManager {
         qUrls = sqs.listQueues().getQueueUrls();
     }
 
-    public String getOrCreate(String Creationname, @Nullable String qUrl) {
+    public String getOrCreate(String creationname, @Nullable String qUrl) {
         if (qUrl!=null && qUrls.contains(qUrl))
             return qUrls.stream().filter(s -> s.equals(qUrl)).collect(Collectors.toList()).get(0);
         // Create a queue
         System.out.println("Creating a new SQS queue called MyQueue.\n");
-        CreateQueueRequest createQueueRequest = new CreateQueueRequest("MyQueue" + UUID.randomUUID());
+        CreateQueueRequest createQueueRequest = new CreateQueueRequest(creationname + UUID.randomUUID());
         String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
         qUrls.add(myQueueUrl);
         return myQueueUrl;
@@ -43,8 +43,14 @@ public class QueueManager extends AwsManager {
             return sqs.receiveMessage(receiveMessageRequest).getMessages();
     }
 
+    public void removeMessage ( @Nullable String queueUrl, Message messages){
+        final String messageReceiptHandle = messages.getReceiptHandle();
+        sqs.deleteMessage(new DeleteMessageRequest(queueUrl, messageReceiptHandle));
+    }
+
     public SendMessageResult sendMessage(String message, String url) {
-        return sqs.sendMessage(new SendMessageRequest(url, message));
+        SendMessageRequest msg = new SendMessageRequest(url,message);
+        return sqs.sendMessage(msg);
     }
 
     public DeleteQueueResult deleteQueue(String url, String message) {
