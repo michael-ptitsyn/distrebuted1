@@ -1,16 +1,22 @@
+import aws.EcManager;
+import aws.QueueManager;
+import aws.S3Client;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
+import general.Constants;
+import objects.EcRunnble;
+import objects.EcTask;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static general.GeneralFunctions.createAttrs;
 
 public class EcFeeder extends EcRunnble implements Runnable {
     private Queue<Message> commandsQueue; //main thread to feed queue
@@ -19,9 +25,9 @@ public class EcFeeder extends EcRunnble implements Runnable {
     private String workQueue;
     private double numberOfMsgs;
     private EcManager ecManager;
-    private HashMap<String, List<EcTask>> taskMapping;
+    private ConcurrentHashMap<String, List<EcTask>> taskMapping;
 
-    public EcFeeder(Queue<Message> commandsQueue, QueueManager manager, S3Client client, EcManager ecManager, String queueUrl, HashMap<String, List<EcTask>> tasks) {
+    public EcFeeder(Queue<Message> commandsQueue, QueueManager manager, S3Client client, EcManager ecManager, String queueUrl, ConcurrentHashMap<String, List<EcTask>> tasks) {
         this.commandsQueue = commandsQueue;
         numberOfMsgs = 0;
         qManager = manager;
@@ -41,7 +47,10 @@ public class EcFeeder extends EcRunnble implements Runnable {
         synchronized (commandsQueue) {
             while (!kill.booleanValue()) {
                 try {
-                    if (commandsQueue.isEmpty()) {
+                    if(!commandsQueue.isEmpty()){
+                        handleTask(commandsQueue.remove());
+                    }
+                    else {
                         try {
                             System.out.println("befor wait");
                             commandsQueue.wait();
@@ -50,7 +59,6 @@ public class EcFeeder extends EcRunnble implements Runnable {
                             Thread.currentThread().interrupt();
                         }
                     }
-                    handleTask(commandsQueue.remove());
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -71,7 +79,7 @@ public class EcFeeder extends EcRunnble implements Runnable {
         String outputFileName = splited[1];
         downloadFromUrl(inputUrl)
                 .forEachRemaining(s -> {
-                    packAndSend(s, workQueue, cmd.getMessageAttributes().get(Constants.MAC_FIELD).toString());
+                    packAndSend(s, workQueue, cmd.getMessageAttributes().get(Constants.MAC_FIELD).getStringValue());
                 });
         int neededEcs = (int) Math.ceil(numberOfMsgs / Constants.DEFAULT_MSG_COMP_RATION) - main.ec2Count;
         if (numberOfMsgs > 0 && neededEcs > 0) {
@@ -85,24 +93,22 @@ public class EcFeeder extends EcRunnble implements Runnable {
 
     private void updateStatusMap(List<Instance> newEc2s) {
         for (Instance incs : newEc2s) {
-            main.ec2StatusMapping.put(incs.getInstanceId(), main.ec2Status.IDLE);
+            main.ec2StatusMapping.put(incs.getInstanceId(), Constants.ec2Status.IDLE);
         }
     }
 
     private void packAndSend(String msgLine, String queueUrl, String clientId) {
         String[] parts = msgLine.split("\t");
-        HashMap<String, MessageAttributeValue> attributes = new HashMap<>();
-        MessageAttributeValue action = new MessageAttributeValue();
-        action.withDataType("String");
-        action.setStringValue(parts[0]);
-        MessageAttributeValue url = new MessageAttributeValue();
-        url.setStringValue(parts[1]);
-        url.withDataType("String");
-        attributes.put("action", action);
-        attributes.put("url", url);
         int index = this.taskMapping.get(clientId)!=null?this.taskMapping.get(clientId).size():0;
-        this.taskMapping.get(clientId).add(new EcTask(clientId, null, null,index));
-        qManager.sendMessage(attributes, queueUrl);
+        HashMap<String, MessageAttributeValue> attributes = new HashMap<>();
+        HashMap<String, String> attrebutes = new HashMap<>();
+        attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.TASK.name());
+        attrebutes.put(Constants.MAC_FIELD, clientId);
+        attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
+        attrebutes.put(Constants.TASK_ID_FIELD, Integer.toString(index));
+        qManager.sendMessage(createAttrs(attrebutes), queueUrl, msgLine);
+        this.taskMapping.computeIfAbsent(clientId, k -> Collections.synchronizedList(new ArrayList<>()))
+                .add(new EcTask(clientId, null, null,index));
         numberOfMsgs++;
     }
 

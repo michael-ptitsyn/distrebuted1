@@ -1,3 +1,5 @@
+package aws;
+
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;

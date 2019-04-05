@@ -1,19 +1,27 @@
+import aws.EcManager;
+import aws.QueueManager;
+import aws.S3Client;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.sqs.model.Message;
+import general.Constants;
+import objects.EcTask;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 
-import java.util.*;
+import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
+import static general.GeneralFunctions.listeningloop;
 import static java.lang.Thread.sleep;
 
 public class main {
-    enum ec2Status{
-        WORKING,
-        IDLE
-    }
     public static QueueManager queueM = new QueueManager();
     public static Queue<Message> retryQueue;
     final Semaphore ec2CountLock = new Semaphore(1, true);
@@ -24,8 +32,8 @@ public class main {
     public static EcListener listener;
     public static String mainQueue;
     public static MutableBoolean isTerminated = new MutableBoolean();
-    public static HashMap<String,ec2Status> ec2StatusMapping = new HashMap<>();
-    public static HashMap<String, List<EcTask>> taskMapping = new HashMap<>();
+    public static HashMap<String, Constants.ec2Status> ec2StatusMapping = new HashMap<>();
+    public static ConcurrentHashMap<String, List<EcTask>> taskMapping = new ConcurrentHashMap<>();
 
     public static void main(String [] args){
         mainQueue = getQueue("mainQueue", Constants.MAINQUEUE);
@@ -35,23 +43,40 @@ public class main {
         isTerminated.setFalse();
         EcManager ecman = new EcManager();
         List<Instance> ecs = ecman.getActiveEc2s();
-        ecs.forEach(s->ec2StatusMapping.put(s.getInstanceId(),ec2Status.IDLE));
+        ecs.forEach(s->ec2StatusMapping.put(s.getInstanceId(), Constants.ec2Status.IDLE));
         ec2Count = ecs.size();
-        listener = new EcListener(resultQueue, queueM);
+        listener = new EcListener(resultQueue, queueM, taskMapping);
         feeder = new EcFeeder(commandsQueue, queueM, s3client, new EcManager(), workQueue, taskMapping);
         Thread t1 = new Thread(feeder);
         t1.start();
         Thread listen = new Thread(listener);
         listen.start();
-        listeningloop(main::handleMessage,mainQueue, isTerminated);
-        //ExecutorService executor = Executors.newFixedThreadPool(2);
+        listeningloop(main::handleMessage,mainQueue, isTerminated, queueM,null);
+        terminatingLoop();
+        try {
+            t1.join();
+            listen.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
 
-//        EcManager man = new EcManager();
-//        List<Instance> instances =  man.createEc2(2,Constants.JAVA8IMG,null);
-//        if(instances!=null) {
-//            List<InstanceStateChange> deadInstances = man.terminateEc2(instances.stream().map(Instance::getInstanceId).collect(Collectors.toList()));
-//        }
-
+    private static void terminatingLoop(){
+        feeder.setKill();
+        while(taskMapping.keySet().stream().anyMatch(k-> taskMapping.get(k).stream().anyMatch(EcTask::notDone))
+                && ec2StatusMapping.values().stream().allMatch(s->s==Constants.ec2Status.IDLE)){
+            try {
+                sleep(Constants.THREAD_SLEEP);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        taskMapping.keySet()
+                .forEach(k-> System.out.println("\n+"+k+":"+taskMapping.get(k)
+                        .stream()
+                        .map(EcTask::getBody)
+                        .collect(Collectors.toList())));
+        listener.setKill();
     }
 
     private static void handleMessage(Message msg){
@@ -78,27 +103,5 @@ public class main {
 //            return queueM.getqUrls().get(index);
 //        }
         return queueM.getOrCreate(name,url);
-    }
-
-    public static void listeningloop(Consumer<Message> cons, String queueUrl, MutableBoolean stopIndicator){
-        List<Message> msgs = new LinkedList<>();
-        while(!stopIndicator.booleanValue()){
-            try{
-            msgs = queueM.getMessage(null,queueUrl,false);
-            if(msgs.size()>0) {
-                    msgs.forEach(cons);
-            }
-            else{
-                try {
-                    sleep(10000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        catch (Exception ex){
-            ex.printStackTrace();
-        }
-        }
     }
 }

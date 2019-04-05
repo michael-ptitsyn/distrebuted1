@@ -1,10 +1,14 @@
+package aws;
+
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Iterator;
@@ -43,6 +47,10 @@ public class S3Client extends AwsManager {
                 return lineToReturn;
             }
         };
+    }
+
+    public PutObjectResult uploadFile(String bucketName, String keyName, File file){
+        return s3.putObject(bucketName, keyName, file);
     }
 
     private S3ObjectInputStream downloadItem(String bucketName, String keyName) {

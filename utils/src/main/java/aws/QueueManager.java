@@ -1,3 +1,5 @@
+package aws;
+
 import java.util.List;
 
 import java.util.Map;
@@ -50,9 +52,9 @@ public class QueueManager extends AwsManager {
         return sqs.sendMessage(new SendMessageRequest(url, message));
     }
 
-    public SendMessageResult sendMessage(Map<String, MessageAttributeValue> attributes, String url) {
+    public SendMessageResult sendMessage(Map<String, MessageAttributeValue> attributes, String url, String body) {
         SendMessageRequest sendMessageRequest = new SendMessageRequest();
-        sendMessageRequest.withMessageBody("empty on purpus");
+        sendMessageRequest.withMessageBody(body);
         sendMessageRequest.withQueueUrl(url);
         sendMessageRequest.withMessageAttributes(attributes);
         return sqs.sendMessage(sendMessageRequest);
