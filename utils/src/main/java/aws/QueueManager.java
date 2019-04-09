@@ -9,6 +9,8 @@ import java.util.stream.Collectors;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.*;
+import general.Constants;
+import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 
 import javax.annotation.Nullable;
 
@@ -19,10 +21,12 @@ public class QueueManager extends AwsManager {
     public QueueManager() {
 
         super();
-        sqs = AmazonSQSClientBuilder.standard()
-                .withCredentials(credentialsProvider)
-                .withRegion(Constants.DEFAULT_REGION)
-                .build();
+
+        AmazonSQSClientBuilder temp = AmazonSQSClientBuilder.standard()
+                .withRegion(Constants.DEFAULT_REGION);
+        if(this.credentialsProvider!=null)
+            temp.withCredentials(credentialsProvider);
+        sqs = temp.build();
         qUrls = sqs.listQueues().getQueueUrls();
     }
 
@@ -39,13 +43,19 @@ public class QueueManager extends AwsManager {
     }
 
     public List<Message> getMessage(@Nullable String queueName, @Nullable String queueUrl, boolean create) {
+        List<Message> result;
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(queueUrl);
         receiveMessageRequest.withWaitTimeSeconds(Constants.TIMEOUT).withMessageAttributeNames("All");
         if(queueUrl!=null && create && getOrCreate(queueName, queueUrl)!=null) {
-            return sqs.receiveMessage(receiveMessageRequest).getMessages();
+            result = sqs.receiveMessage(receiveMessageRequest).getMessages();
+            System.out.println("recieved" + result.size()+" messages");
+            return result;
         }
-        else
-            return sqs.receiveMessage(receiveMessageRequest).getMessages();
+        else {
+            result = sqs.receiveMessage(receiveMessageRequest).getMessages();
+            System.out.println("recieved" + result.size() + " messages");
+            return result;
+        }
     }
 
     public SendMessageResult sendMessage(String message, String url) {

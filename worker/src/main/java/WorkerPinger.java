@@ -23,7 +23,7 @@ public class WorkerPinger extends EcRunnble implements Runnable {
                 attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.STATUS_UPDATE.name());
                 attrebutes.put(Constants.STATUS_FIELD, Constants.ec2Status.IDLE.name());
                 attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
-                attrebutes.put(Constants.MAC_FIELD, "NO MAC");
+                attrebutes.put(Constants.REQUEST_ID_FIELD, "NO MAC");
                 attrebutes.put(Constants.TASK_ID_FIELD, "2");
                 qManager.sendMessage(createAttrs(attrebutes), resultQueue, "status");
                 System.out.println("sleeping...");

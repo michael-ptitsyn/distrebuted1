@@ -5,12 +5,15 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
+import general.Constants;
 import org.apache.commons.codec.binary.Base64;
 
 import javax.annotation.Nullable;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class EcManager extends AwsManager {
@@ -18,7 +21,7 @@ public class EcManager extends AwsManager {
     private String region;
     private List<Instance> mechines;
     private AmazonEC2 ec2;
-
+//TODO should be singletone
     public EcManager(String region) {
         super();
         this.region = region;
@@ -26,6 +29,7 @@ public class EcManager extends AwsManager {
                 .withCredentials(credentialsProvider)
                 .withRegion(region)
                 .build();
+        mechines = getActiveEc2s();
     }
 
     public EcManager() {
@@ -42,12 +46,16 @@ public class EcManager extends AwsManager {
         try {
             RunInstancesRequest request = new RunInstancesRequest(image, num, num);
             request.withKeyName(Constants.KEY_PAIR);
+            IamInstanceProfileSpecification iam = new IamInstanceProfileSpecification();
+            iam.withArn("arn:aws:iam::993541871317:instance-profile/worker");
+            request.withIamInstanceProfile(iam);
             if (userData != null) {
                 String base64UserData = new String(Base64.encodeBase64( userData.getBytes( "UTF-8" )), "UTF-8" );
                 request.withUserData(base64UserData);
             }
             request.setInstanceType(InstanceType.T1Micro.toString());
             List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();
+            mechines.addAll(instances);
             System.out.println("Launch instances: " + instances);
             return instances;
         } catch (AmazonServiceException ase) {
@@ -82,8 +90,6 @@ public class EcManager extends AwsManager {
 
     @Nullable
     public List<InstanceStateChange> terminateEc2(List<String> instanceIds) {
-
-
         try {
             // Basic 32-bit Amazon Linux AMI 1.0 (AMI Id: ami-08728661)
             TerminateInstancesRequest request = new TerminateInstancesRequest(instanceIds);
@@ -94,6 +100,28 @@ public class EcManager extends AwsManager {
             handleErrors(ase);
             return null;
         }
+    }
+
+    public List<InstanceStateChange> terminateAll() {
+        List<InstanceStateChange> result =  terminateEc2(mechines.stream().map(Instance::getInstanceId).collect(Collectors.toList()));
+        mechines.clear();
+        return result;
+    }
+
+    public CreateTagsResult createTags(List<String> ids, Map<String, String> keyVal) {
+        List<Tag> tagList = keyVal.keySet().stream().map(k->new Tag(k,keyVal.get(k))).collect(Collectors.toList());
+        CreateTagsRequest tagReq = new CreateTagsRequest(ids, tagList);
+        return ec2.createTags(tagReq);
+    }
+
+    public List<Instance> getByTag(String keyName,String value ){
+        DescribeInstancesRequest request = new DescribeInstancesRequest();
+        List<String> valuesT1 = new ArrayList<String>();
+        valuesT1.add(value);
+        Filter filter = new Filter("tag:"+keyName, valuesT1);
+        DescribeInstancesResult result = ec2.describeInstances(request.withFilters(filter));
+        List<Reservation> reservations = result.getReservations();
+        return reservations.stream().flatMap(r->r.getInstances().stream()).collect(Collectors.toList());
     }
 
 

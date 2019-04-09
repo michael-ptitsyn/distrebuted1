@@ -79,11 +79,11 @@ public class EcFeeder extends EcRunnble implements Runnable {
         String outputFileName = splited[1];
         downloadFromUrl(inputUrl)
                 .forEachRemaining(s -> {
-                    packAndSend(s, workQueue, cmd.getMessageAttributes().get(Constants.MAC_FIELD).getStringValue());
+                    packAndSend(s, workQueue, cmd.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue());
                 });
         int neededEcs = (int) Math.ceil(numberOfMsgs / Constants.DEFAULT_MSG_COMP_RATION) - main.ec2Count;
         if (numberOfMsgs > 0 && neededEcs > 0) {
-            newEcs = ecManager.createEc2(neededEcs, Constants.JAVA8IMG, Constants.WORKER_USER_SCRIPT);
+            newEcs = ecManager.createEc2(neededEcs, Constants.UBUNTU16_BLANK, Constants.WORKER_USER_SCRIPT);
             if (newEcs != null) {
                 updateStatusMap(newEcs);
             }
@@ -103,12 +103,12 @@ public class EcFeeder extends EcRunnble implements Runnable {
         HashMap<String, MessageAttributeValue> attributes = new HashMap<>();
         HashMap<String, String> attrebutes = new HashMap<>();
         attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.TASK.name());
-        attrebutes.put(Constants.MAC_FIELD, clientId);
+        attrebutes.put(Constants.REQUEST_ID_FIELD, clientId);
         attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
         attrebutes.put(Constants.TASK_ID_FIELD, Integer.toString(index));
-        qManager.sendMessage(createAttrs(attrebutes), queueUrl, msgLine);
         this.taskMapping.computeIfAbsent(clientId, k -> Collections.synchronizedList(new ArrayList<>()))
-                .add(new EcTask(clientId, null, null,index));
+                .add(new EcTask(clientId, null, msgLine,index));
+        qManager.sendMessage(createAttrs(attrebutes), queueUrl, msgLine);
         numberOfMsgs++;
     }
 

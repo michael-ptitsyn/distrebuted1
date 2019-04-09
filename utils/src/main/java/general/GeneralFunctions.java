@@ -6,6 +6,7 @@ import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 
 import javax.annotation.Nullable;
+import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;

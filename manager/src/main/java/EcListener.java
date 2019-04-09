@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static general.GeneralFunctions.listeningloop;
+
 /**
  * created to handle exceptions
  * will listen the results queue and created the html
@@ -30,7 +32,7 @@ public class EcListener extends EcRunnble implements Runnable {
     //TODO we dont know when to stop
     @Override
     public void run() {
-            main.listeningloop(this::handleMsg, queueUrl, kill, queueM, null);
+            listeningloop(this::handleMsg, queueUrl, kill, queueM, null);
     }
 
     private void handleMsg(Message msg){
@@ -43,7 +45,7 @@ public class EcListener extends EcRunnble implements Runnable {
             } else if (msgType.equals(Constants.MESSAGE_TYPE.TASK_RESULT.name())) {
                 result = result != null ? result + "\n" + msg.getBody() : msg.getBody();
                 int index = Integer.valueOf(msg.getMessageAttributes().get(Constants.TASK_ID_FIELD).getStringValue());
-                EcTask tempTask =  tasksMap.get(msg.getMessageAttributes().get(Constants.MAC_FIELD).getStringValue())
+                EcTask tempTask =  tasksMap.get(msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue())
                         .get(index);
                 tempTask.setResult_url(msg.getBody());
                 tempTask.setDone(true);
