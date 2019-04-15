@@ -87,13 +87,13 @@ public class main {
 
                             PDFTextStripper striper= new PDFTextStripper();
                             name=name+"html";
-                            File FFile = new File;
+                            File FFile = new File();
                             FileWriter writer= new FileWriter(FFile);
 
                             striper.writeText(fpdf, writer );
                             writer.
                             S3Client man =new S3Client();
-                            man.uploadFile(Constants.BUCKET_NAME, "1", FFile );
+                            man.uploadFile(Constants.BUCKET_NAME, name , FFile );
 
 
                         } catch (InvalidPasswordException e) {
