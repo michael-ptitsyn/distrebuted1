@@ -48,12 +48,12 @@ public class QueueManager extends AwsManager {
         receiveMessageRequest.withWaitTimeSeconds(Constants.TIMEOUT).withMessageAttributeNames("All");
         if(queueUrl!=null && create && getOrCreate(queueName, queueUrl)!=null) {
             result = sqs.receiveMessage(receiveMessageRequest).getMessages();
-            System.out.println("recieved" + result.size()+" messages");
+            System.out.println("recieved " + result.size()+" messages");
             return result;
         }
         else {
             result = sqs.receiveMessage(receiveMessageRequest).getMessages();
-            System.out.println("recieved" + result.size() + " messages");
+            System.out.println("recieved " + result.size() + " messages");
             return result;
         }
     }
@@ -70,10 +70,10 @@ public class QueueManager extends AwsManager {
         return sqs.sendMessage(sendMessageRequest);
     }
 
-    public DeleteQueueResult deleteQueue(String url, String message) {
-        sqs.deleteQueue(new DeleteQueueRequest(url));
+    public DeleteQueueResult deleteQueue(String url) {
+        DeleteQueueResult q = sqs.deleteQueue(new DeleteQueueRequest(url));
         qUrls.remove(url);
-        return sqs.deleteQueue(new DeleteQueueRequest(url));
+        return q;
     }
 
     public DeleteMessageResult deleteMsg(String queueUrl, Message msg){

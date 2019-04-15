@@ -21,7 +21,8 @@ public class EcManager extends AwsManager {
     private String region;
     private List<Instance> mechines;
     private AmazonEC2 ec2;
-//TODO should be singletone
+
+    //TODO should be singletone
     public EcManager(String region) {
         super();
         this.region = region;
@@ -50,7 +51,7 @@ public class EcManager extends AwsManager {
             iam.withArn("arn:aws:iam::993541871317:instance-profile/worker");
             request.withIamInstanceProfile(iam);
             if (userData != null) {
-                String base64UserData = new String(Base64.encodeBase64( userData.getBytes( "UTF-8" )), "UTF-8" );
+                String base64UserData = new String(Base64.encodeBase64(userData.getBytes("UTF-8")), "UTF-8");
                 request.withUserData(base64UserData);
             }
             request.setInstanceType(InstanceType.T1Micro.toString());
@@ -60,14 +61,21 @@ public class EcManager extends AwsManager {
             return instances;
         } catch (AmazonServiceException ase) {
             handleErrors(ase);
-        }
-        catch (UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
         return null;
     }
 
+    public List<Instance> getNotStoped() {
+        return Ec2s().stream().filter(s -> s.getState().getCode()<32).collect(Collectors.toList());
+    }
+
     public List<Instance> getActiveEc2s() {
+        return Ec2s().stream().filter(s -> s.getPublicIpAddress() != null).collect(Collectors.toList());
+    }
+
+    private List<Instance> Ec2s() {
         List<Instance> result = new LinkedList<>();
         try {
             boolean done = false;
@@ -75,14 +83,14 @@ public class EcManager extends AwsManager {
             while (!done) {
                 DescribeInstancesResult response = ec2.describeInstances(request);
                 for (Reservation reservation : response.getReservations()) {
-                    result.addAll(reservation.getInstances().stream().filter(s->s.getPublicIpAddress()!= null).collect(Collectors.toList()));
+                    result.addAll(reservation.getInstances());
                 }
                 request.setNextToken(response.getNextToken());
                 if (response.getNextToken() == null) {
                     done = true;
                 }
             }
-        }catch (AmazonServiceException ase) {
+        } catch (AmazonServiceException ase) {
             handleErrors(ase);
         }
         return result;
@@ -103,48 +111,24 @@ public class EcManager extends AwsManager {
     }
 
     public List<InstanceStateChange> terminateAll() {
-        List<InstanceStateChange> result =  terminateEc2(mechines.stream().map(Instance::getInstanceId).collect(Collectors.toList()));
+        List<InstanceStateChange> result = terminateEc2(mechines.stream().map(Instance::getInstanceId).collect(Collectors.toList()));
         mechines.clear();
         return result;
     }
 
     public CreateTagsResult createTags(List<String> ids, Map<String, String> keyVal) {
-        List<Tag> tagList = keyVal.keySet().stream().map(k->new Tag(k,keyVal.get(k))).collect(Collectors.toList());
+        List<Tag> tagList = keyVal.keySet().stream().map(k -> new Tag(k, keyVal.get(k))).collect(Collectors.toList());
         CreateTagsRequest tagReq = new CreateTagsRequest(ids, tagList);
         return ec2.createTags(tagReq);
     }
 
-    public List<Instance> getByTag(String keyName,String value ){
+    public List<Instance> getByTag(String keyName, String value) {
         DescribeInstancesRequest request = new DescribeInstancesRequest();
         List<String> valuesT1 = new ArrayList<String>();
         valuesT1.add(value);
-        Filter filter = new Filter("tag:"+keyName, valuesT1);
+        Filter filter = new Filter("tag:" + keyName, valuesT1);
         DescribeInstancesResult result = ec2.describeInstances(request.withFilters(filter));
         List<Reservation> reservations = result.getReservations();
-        return reservations.stream().flatMap(r->r.getInstances().stream()).collect(Collectors.toList());
+        return reservations.stream().flatMap(r -> r.getInstances().stream()).collect(Collectors.toList());
     }
-
-
-//    public static void main(String[] args) throws Exception {
-//        AWSCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());
-//        AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard()
-//                .withCredentials(credentialsProvider)
-//                .withRegion("us-west-1")
-//                .build();
-//
-//        try {
-//            // Basic 32-bit Amazon Linux AMI 1.0 (AMI Id: ami-08728661)
-//            RebootInstancesRequest reboot = new RebootInstancesRequest(ImmutableList.<String>of("i-053c057ecc7248ecb"));
-////            RunInstancesRequest request = new RunInstancesRequest("ami-8c1fece5", 1, 1);
-////            request.setInstanceType(InstanceType.T1Micro.toString());
-//            ec2.rebootInstances(reboot);
-//            System.out.println("Rebooted please check !!!" );
-//
-//        } catch (AmazonServiceException ase) {
-//            System.out.println("Caught Exception: " + ase.getMessage());
-//            System.out.println("Reponse Status Code: " + ase.getStatusCode());
-//            System.out.println("Error Code: " + ase.getErrorCode());
-//            System.out.println("Request ID: " + ase.getRequestId());
-//        }
-//    }
 }

@@ -24,18 +24,31 @@
         <module>utils</module>
         <module>manager</module>
         <module>worker</module>
-        <module>application</module>
-        <module>clientAplication</module>
         <module>clientApp</module>
     </modules>
     <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk -->
     <dependencies>
         <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk -->
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-sqs -->
         <dependency>
             <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk</artifactId>
-            <version>1.11.529</version>
+            <artifactId>aws-java-sdk-sqs</artifactId>
+            <version>1.11.534</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-s3 -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>1.11.534</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-ec2 -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-ec2</artifactId>
+            <version>1.11.534</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
         <dependency>
             <groupId>com.google.guava</groupId>

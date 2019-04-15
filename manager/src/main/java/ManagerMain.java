@@ -21,7 +21,7 @@ import static general.GeneralFunctions.createAttrs;
 import static general.GeneralFunctions.listeningloop;
 import static java.lang.Thread.sleep;
 
-public class main {
+public class ManagerMain {
     public static QueueManager queueM = new QueueManager();
     final Semaphore ec2CountLock = new Semaphore(1, true);
     public static int ec2Count = 0;
@@ -37,32 +37,37 @@ public class main {
     public static EcManager ecman = new EcManager();
 
     public static void main(String[] args) {
-        mainQueue = getQueue("mainQueue", Constants.MAINQUEUE);
-        String workQueue = getQueue("workQueue", Constants.WORKQUEUE);
-        String resultQueue = getQueue("resultQueue", Constants.RESULT_QUEUE);
-        queueM = new QueueManager();
-        isTerminated.setFalse();
-        List<Instance> ecs = ecman.getActiveEc2s();
-        ecs.forEach(s -> ec2StatusMapping.put(s.getInstanceId(), Constants.ec2Status.IDLE));
-        ec2Count = ecs.size();
-        listener = new EcListener(resultQueue, queueM, taskMapping);
-        feeder = new EcFeeder(commandsQueue, queueM, s3client, ecman, workQueue, taskMapping);
-        Thread t1 = new Thread(feeder);
-        t1.start();
-        Thread listen = new Thread(listener);
-        listen.start();
-        listeningloop(main::handleMessage, mainQueue, isTerminated, queueM, null);
-        terminatingLoop();
         try {
+            mainQueue = getQueue("mainQueue", Constants.MAINQUEUE);
+            String workQueue = getQueue("workQueue", Constants.WORKQUEUE);
+            String resultQueue = getQueue("resultQueue", Constants.RESULT_QUEUE);
+            queueM = new QueueManager();
+            isTerminated.setFalse();
+            List<Instance> ecs = ecman.getActiveEc2s();
+            ecs.forEach(s -> ec2StatusMapping.put(s.getInstanceId(), Constants.ec2Status.IDLE));
+            ec2Count = ecs.size();
+            listener = new EcListener(resultQueue, queueM, taskMapping);
+            feeder = new EcFeeder(commandsQueue, queueM, s3client, ecman, workQueue, taskMapping);
+            Thread t1 = new Thread(feeder);
+            t1.start();
+            Thread listen = new Thread(listener);
+            listen.start();
+            listeningloop(ManagerMain::handleMessage, mainQueue, isTerminated, queueM, null);
+            terminatingLoop();
+            System.out.println("wait to t1");
             t1.join();
+            System.out.println("wait to listener");
             listen.join();
+            System.out.println("exiting");
         } catch (InterruptedException e) {
             e.printStackTrace();
+        } finally {
+            ecman.terminateAll();
         }
     }
 
     private static void terminatingLoop() {
-        String result = "";
+        System.out.println("feeder.setKill()");
         feeder.setKill();
         while (taskMapping.keySet().stream().anyMatch(k -> taskMapping.get(k).stream().anyMatch(EcTask::notDone))
                 && ec2StatusMapping.values().stream().allMatch(s -> s == Constants.ec2Status.IDLE)) {
@@ -82,21 +87,32 @@ public class main {
         listener.setKill();
     }
 
+    public static void handleExcpetion(QueueManager qManager, String queueUrl, Exception ex, String rId, String iId) {
+        HashMap<String, String> attrebutes = new HashMap<>();
+        attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.ERROR.name());
+        attrebutes.put(Constants.REQUEST_ID_FIELD, rId);
+        attrebutes.put(Constants.ID_FIELD, iId);
+        qManager.sendMessage(createAttrs(attrebutes), queueUrl, ex.getMessage());
+    }
+
     private static void handleMessage(Message msg) {
-        System.out.println("*******main: " + msg.getBody());
+        System.out.println("*******ManagerMain: " + msg.getBody());
+        String requestId;
         try {
             Constants.MESSAGE_TYPE type = Constants.MESSAGE_TYPE.valueOf(msg.getMessageAttributes().get(Constants.TYPE_FIELD).getStringValue());
-            String requestId = msg.getMessageAttributes().get(Constants.REQUEST_ID).getStringValue();
+            requestId = msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue();
             if (type == Constants.MESSAGE_TYPE.TERMINATION) {
                 isTerminated.setTrue();
+                System.out.println("isTerminated.setTrue()");
                 synchronized (commandsQueue) {
                     feeder.setKill();
                     commandsQueue.notifyAll();
                 }
+                System.out.println("isTerminated end of if");
             } else if (type == Constants.MESSAGE_TYPE.INIT) {
-                String newQueue = queueM.getOrCreate(requestId, null);
-                sendQueueUrl(requestId, newQueue, mainQueue);
-                queueMapping.put(requestId, newQueue);
+                String resultQueue = msg.getBody();
+                sendHandShake(requestId, resultQueue);
+                queueMapping.put(requestId, resultQueue);
             } else if (type == Constants.MESSAGE_TYPE.TASK) {
                 synchronized (commandsQueue) {
                     commandsQueue.add(msg);
@@ -104,39 +120,41 @@ public class main {
                 }
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
+            String clientId = msg.getMessageAttributes().get(Constants.ID_FIELD).getStringValue();
+            requestId = msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue();
+            handleExcpetion(queueM, queueMapping.get(requestId), ex, requestId, clientId);
         } finally {
             queueM.deleteMsg(mainQueue, msg);
         }
     }
 
-    private static void sendQueueUrl(String clientId, String newQueueUrl, String queueUrl) {
+    private static void sendHandShake(String clientId, String queueUrl) {
         HashMap<String, String> attrebutes = new HashMap<>();
         attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.INIT.name());
         attrebutes.put(Constants.REQUEST_ID_FIELD, clientId);
         attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
-        queueM.sendMessage(createAttrs(attrebutes), queueUrl, newQueueUrl);
+        queueM.sendMessage(createAttrs(attrebutes), queueUrl, "null");
     }
 
     public static String returnResultSequence(List<EcTask> results, String clientId) {
         try {
-            File htmlTemplateFile = new File("manager/src/main/resources/tamplate.html");
-            String htmlString = FileUtils.readFileToString(htmlTemplateFile, "utf-8");
+            File htmlTemplateFile = new File("manager/src/ManagerMain/resources/tamplate.html");
+            String responseString = "";
             String title = "New Page";
-            htmlString = htmlString.replace("$title", title);
-            htmlString = htmlString.replace("$content", results.stream().map(EcTask::getResult_url)
-                    .reduce((s, c) -> s + c + "</br>").get());
-            File newHtmlFile = new File(clientId + ".html");
-            FileUtils.writeStringToFile(newHtmlFile, htmlString, "utf-8");
-            s3client.uploadFile(Constants.BUCKET_NAME, clientId, newHtmlFile);
+            responseString = results.stream()
+                    .map(task -> String.format("%s\t%s\t%s", task.getOperation(), task.getBody(), task.getResult_url()))
+                    .reduce((s, c) -> s + c + "\n").get();
+            File newHtmlFile = new File(clientId);
+            FileUtils.writeStringToFile(newHtmlFile, responseString, "utf-8");
+            String key = Constants.PUBLIC_FOLDER + clientId + "res";
+            s3client.uploadFile(Constants.BUCKET_NAME, key, newHtmlFile);
             newHtmlFile.deleteOnExit();
-            String result = s3client.getUrl(Constants.BUCKET_NAME, clientId).toString();
             HashMap<String, String> attrebutes = new HashMap<>();
             attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.TASK_RESULT.name());
             attrebutes.put(Constants.REQUEST_ID_FIELD, Constants.REQUEST_ID);
             attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
-            queueM.sendMessage(createAttrs(attrebutes), queueMapping.get(clientId), result);
-            return result;
+            queueM.sendMessage(createAttrs(attrebutes), queueMapping.get(clientId), key);
+            return key;
         } catch (Exception ex) {
             return "unable to created input file";
         }

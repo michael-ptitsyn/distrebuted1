@@ -3,10 +3,7 @@ package aws;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
+import com.amazonaws.services.s3.model.*;
 import general.Constants;
 
 import java.io.*;
@@ -18,13 +15,30 @@ public class S3Client extends AwsManager {
 
     public S3Client() {
         super();
-        this.s3 = AmazonS3ClientBuilder.standard()
-                .withRegion(Constants.DEFAULT_REGION).build();
+        AmazonS3ClientBuilder temp = AmazonS3ClientBuilder.standard()
+                .withRegion(Constants.DEFAULT_REGION);
+
+        if(this.credentialsProvider!=null)
+            temp.withCredentials(credentialsProvider);
+        this.s3=temp.build();
     }
 
-    public Iterator<String> downloadItemAsLines(String bucketName, String keyName) throws IOException {
+    public Iterator<String> downloadItemAsLines(String bucketName, String keyName) {
         S3ObjectInputStream s3is = downloadItem(bucketName, keyName);
-        return iteratorFromReader(new BufferedReader(new InputStreamReader(s3is)));
+        try {
+            return iteratorFromReader(new BufferedReader(new InputStreamReader(s3is)));
+        } catch (IOException e) {
+            return new Iterator<String>() {
+                @Override
+                public boolean hasNext() {
+                    return false;
+                }
+                @Override
+                public String next() {
+                    return null;
+                }
+            };
+        }
     }
 
     public static Iterator<String> iteratorFromReader(BufferedReader reader) throws IOException {
@@ -51,6 +65,10 @@ public class S3Client extends AwsManager {
 
     public PutObjectResult uploadFile(String bucketName, String keyName, File file){
         return s3.putObject(bucketName, keyName, file);
+    }
+
+    public PutObjectResult uploadFile(String bucketName, String keyName, InputStream ins, ObjectMetadata mt){
+        return s3.putObject(bucketName, keyName, ins, mt);
     }
 
     public PutObjectResult uploadFile(String bucketName, String keyName, InputStream input, String ContentType){

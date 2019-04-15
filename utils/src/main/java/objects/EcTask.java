@@ -4,14 +4,21 @@ public class EcTask {
     private String clientName;
     private String result_url;
     private String body;
+    private String operation;
     private int id;
     private boolean done;
 
-    public EcTask(String clientName, String result_url, String body, int id) {
+    public String getOperation() {
+        return operation;
+    }
+
+public EcTask(String clientName, String operation, String body, String result_url, int id) {
         this.clientName = clientName;
         this.result_url = result_url;
+        this.operation = operation;
         this.body = body;
         this.id = id;
+
         done = false;
     }
 

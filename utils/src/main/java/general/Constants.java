@@ -28,6 +28,7 @@ public class Constants {
     public static final String ID_FIELD = "instanceId"; //the unique id of the ec2 machine
     public static final String instanceId = EC2MetadataUtils.getInstanceId()!=null?EC2MetadataUtils.getInstanceId():UUID.randomUUID().toString();
     public static final String REQUEST_ID = UUID.randomUUID().toString();
+    public static final String PUBLIC_FOLDER = "public/";
     public enum  MESSAGE_TYPE {
         STATUS_UPDATE,
         TASK,
@@ -40,19 +41,37 @@ public class Constants {
         WORKING,
         IDLE
     }
+
+    public enum TASKS{
+        ToImage,
+        ToHTML,
+        ToText
+    }
+
     public static final ImmutableList<String> REQUIRED = ImmutableList.of(REQUEST_ID_FIELD,ID_FIELD,TYPE_FIELD);
     public static final String WORKER_USER_SCRIPT = "#!/bin/bash\n" +
             "apt update -y\n"+
             "apt install openjdk-8-jdk -y\n" +
             "mkdir /home/ubuntu/michael\n" +
             "cd /home/ubuntu/michael\n"+
-            "wget https://s3.amazonaws.com/michael-dror-distrebuted/worker.jar\n"+
-            "java -jar worker.jar";
+            "wget https://s3.amazonaws.com/michael-dror-distrebuted/public/worker.jar\n"+
+            "java -jar worker.jar > output";
     public static final String MANAGER_USER_SCRIPT = "#!/bin/bash\n" +
             "apt update -y\n"+
             "apt install openjdk-8-jdk -y\n" +
             "mkdir /home/ubuntu/michael\n" +
             "cd /home/ubuntu/michael\n"+
-            "wget https://s3.amazonaws.com/michael-dror-distrebuted/manager.jar\n"+
-            "java -jar worker.jar";
+            "wget https://s3.amazonaws.com/michael-dror-distrebuted/public/manager.jar\n"+
+            "java -jar manager.jar > output";
+
+    public static final String htmlTemplate = "<!DOCTYPE html>\n" +
+            "<html lang=\"en\">\n" +
+            "<head>\n" +
+            "    <meta charset=\"UTF-8\">\n" +
+            "    <title>Title</title>\n" +
+            "</head>\n" +
+            "<body>\n" +
+            "$content\n" +
+            "</body>\n" +
+            "</html>";
 }
