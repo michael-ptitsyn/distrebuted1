@@ -70,7 +70,7 @@ public class ClientMain {
     private static void initSequence() {
         resultQueue = queueM.getOrCreate(Constants.REQUEST_ID, null);
         sendMessage(Constants.MESSAGE_TYPE.INIT, Constants.REQUEST_ID, Constants.instanceId, resultQueue, mainQueue);
-        System.out.println("\u001B[32m" + "created and sent result queue! " + resultQueue);
+        System.out.println(ANSI_GREEN + "created and sent result queue! " + resultQueue + ANSI_GREEN);
     }
 
     private static void sendTask(String task) {
@@ -114,7 +114,7 @@ public class ClientMain {
                 String title = "RESULTS";
                 htmlString = htmlString.replace("$title", title);
                 htmlString = htmlString.replace("$content", StreamSupport.stream(lines.spliterator(), false)
-                        .reduce((s, c) -> s + c + "</br>").get());
+                        .reduce((s, c) -> s + "</br>"+ c ).get());
                 File newHtmlFile = new File(outputName + ".html");
                 FileUtils.writeStringToFile(newHtmlFile, htmlString, "utf-8");
                 stop.setTrue();

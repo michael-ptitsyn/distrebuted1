@@ -35,6 +35,7 @@ public class EcManager extends AwsManager {
 
     public EcManager() {
         this(Constants.DEFAULT_REGION);
+
     }
 
     //    public List<Instance> initMechines(int num, List<String> userData){
@@ -68,14 +69,14 @@ public class EcManager extends AwsManager {
     }
 
     public List<Instance> getNotStoped() {
-        return Ec2s().stream().filter(s -> s.getState().getCode()<32).collect(Collectors.toList());
+        return listEc2s().stream().filter(s -> s.getState().getCode()<32).collect(Collectors.toList());
     }
 
     public List<Instance> getActiveEc2s() {
-        return Ec2s().stream().filter(s -> s.getPublicIpAddress() != null).collect(Collectors.toList());
+        return listEc2s().stream().filter(s -> s.getPublicIpAddress() != null).collect(Collectors.toList());
     }
 
-    private List<Instance> Ec2s() {
+    private List<Instance> listEc2s() {
         List<Instance> result = new LinkedList<>();
         try {
             boolean done = false;
@@ -95,6 +96,8 @@ public class EcManager extends AwsManager {
         }
         return result;
     }
+
+    private
 
     @Nullable
     public List<InstanceStateChange> terminateEc2(List<String> instanceIds) {

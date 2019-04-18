@@ -25,12 +25,14 @@ import static general.GeneralFunctions.validateMsg;
 public class WorkerMain {
     public static Constants.ec2Status status;
     private static QueueManager queueM = new QueueManager();
-    private static String resultQueue = queueM.getOrCreate("resultQueue", Constants.RESULT_QUEUE);
-    private static String workQueue = queueM.getOrCreate("workQueue", Constants.WORKQUEUE);
+    private static String resultQueue; //= queueM.getOrCreate("resultQueue", Constants.RESULT_QUEUE);
+    private static String workQueue; //= queueM.getOrCreate("workQueue", Constants.WORKQUEUE);
     private static S3Client s3 = new S3Client();
 
     public static void main(String[] args) {
         final MutableBoolean isTerminated = new MutableBoolean();
+        workQueue = queueM.getOrCreate("workQueue", args[0]);
+        resultQueue = queueM.getOrCreate("resultQueue", args[1]);
         status = Constants.ec2Status.IDLE;
         WorkerPinger wPinger = new WorkerPinger(queueM, resultQueue);
         Thread pinger = new Thread(wPinger);

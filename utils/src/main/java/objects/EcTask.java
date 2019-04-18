@@ -8,6 +8,8 @@ public class EcTask {
     private int id;
     private boolean done;
 
+    private String worker;
+
     public String getOperation() {
         return operation;
     }
@@ -21,6 +23,11 @@ public EcTask(String clientName, String operation, String body, String result_ur
 
         done = false;
     }
+
+public EcTask(String clientName, String operation, String body, String result_url, int id, boolean done) {
+        this(clientName, operation, body, result_url, id);
+        this.done=done;
+}
 
     public boolean notDone() {
         return !done;
@@ -60,5 +67,13 @@ public EcTask(String clientName, String operation, String body, String result_ur
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    public String getWorker() {
+        return worker;
+    }
+
+    public void setWorker(String worker) {
+        this.worker = worker;
     }
 }

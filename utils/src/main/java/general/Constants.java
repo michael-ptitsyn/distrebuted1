@@ -35,7 +35,8 @@ public class Constants {
         TERMINATION,
         TASK_RESULT,
         INIT,
-        ERROR
+        ERROR,
+        TASK_START
     }
     public enum ec2Status{
         WORKING,
@@ -55,7 +56,7 @@ public class Constants {
             "mkdir /home/ubuntu/michael\n" +
             "cd /home/ubuntu/michael\n"+
             "wget https://s3.amazonaws.com/michael-dror-distrebuted/public/worker.jar\n"+
-            "java -jar worker.jar > output";
+            "java -jar worker.jar $1 $2 > output";
     public static final String MANAGER_USER_SCRIPT = "#!/bin/bash\n" +
             "apt update -y\n"+
             "apt install openjdk-8-jdk -y\n" +

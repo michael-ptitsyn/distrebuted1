@@ -7,6 +7,8 @@ import general.Constants;
 import objects.EcTask;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.joda.time.DateTime;
 
 import java.io.*;
 import java.util.HashMap;
@@ -30,17 +32,21 @@ public class ManagerMain {
     public static EcFeeder feeder;
     public static EcListener listener;
     public static String mainQueue;
+    //TODO remove all those statics!
+    public static final Queue<String> ec2ToRefresh = new ConcurrentLinkedQueue<>();
     public static MutableBoolean isTerminated = new MutableBoolean();
-    public static HashMap<String, Constants.ec2Status> ec2StatusMapping = new HashMap<>();
+    public static HashMap<String, Pair<Constants.ec2Status, DateTime>> ec2StatusMapping = new HashMap<>();
     public static ConcurrentHashMap<String, List<EcTask>> taskMapping = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, String> queueMapping = new ConcurrentHashMap<>();
     public static EcManager ecman = new EcManager();
+    public static String workQueue;
+    public static String resultQueue;
 
     public static void main(String[] args) {
         try {
             mainQueue = getQueue("mainQueue", Constants.MAINQUEUE);
-            String workQueue = getQueue("workQueue", Constants.WORKQUEUE);
-            String resultQueue = getQueue("resultQueue", Constants.RESULT_QUEUE);
+            workQueue = getQueue("workQueue", Constants.WORKQUEUE);
+            resultQueue = getQueue("resultQueue", Constants.RESULT_QUEUE);
             queueM = new QueueManager();
             isTerminated.setFalse();
             List<Instance> ecs = ecman.getActiveEc2s();
@@ -48,6 +54,7 @@ public class ManagerMain {
             ec2Count = ecs.size();
             listener = new EcListener(resultQueue, queueM, taskMapping);
             feeder = new EcFeeder(commandsQueue, queueM, s3client, ecman, workQueue, taskMapping);
+            System.out.println("start feeder");
             Thread t1 = new Thread(feeder);
             t1.start();
             Thread listen = new Thread(listener);
@@ -58,6 +65,9 @@ public class ManagerMain {
             t1.join();
             System.out.println("wait to listener");
             listen.join();
+            System.out.println("killing queues");
+            queueM.deleteQueue(workQueue);
+            queueM.deleteQueue(resultQueue);
             System.out.println("exiting");
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -115,6 +125,7 @@ public class ManagerMain {
                 queueMapping.put(requestId, resultQueue);
             } else if (type == Constants.MESSAGE_TYPE.TASK) {
                 synchronized (commandsQueue) {
+                    System.out.println("task put to queue");
                     commandsQueue.add(msg);
                     commandsQueue.notifyAll();
                 }
@@ -133,7 +144,7 @@ public class ManagerMain {
         attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.INIT.name());
         attrebutes.put(Constants.REQUEST_ID_FIELD, clientId);
         attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
-        queueM.sendMessage(createAttrs(attrebutes), queueUrl, "null");
+        queueM.sendMessage(createAttrs(attrebutes), queueUrl, "OK");
     }
 
     public static String returnResultSequence(List<EcTask> results, String clientId) {

@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static general.GeneralFunctions.createAttrs;
 
 public class EcFeeder extends EcRunnble implements Runnable {
-    private Queue<Message> commandsQueue; //ManagerMain thread to feed queue
+    private final Queue<Message> commandsQueue; //ManagerMain thread to feed queue
     private QueueManager qManager;
     private S3Client s3Client;
     private String workQueue;
@@ -42,6 +42,7 @@ public class EcFeeder extends EcRunnble implements Runnable {
 
     @Override
     public void run() {
+        System.out.println("feeder run ");
         String cmd;
         synchronized (commandsQueue) {
             while (!kill.booleanValue()) {
@@ -58,7 +59,7 @@ public class EcFeeder extends EcRunnble implements Runnable {
                     }
                 } catch (Exception ex) {
                     //TODO send wxception to client
-                    ex.printStackTrace();
+                    System.out.println(ex.toString());
                 }
             }
             System.out.println("feeder killed!!!");
@@ -67,6 +68,7 @@ public class EcFeeder extends EcRunnble implements Runnable {
     }
 
     private void handleTask(Message cmd) throws IllegalArgumentException {
+        System.out.println("handle");
         //TODO syncronize isTerminated
         List<Instance> newEcs;
         numberOfMsgs = 0;
@@ -80,7 +82,10 @@ public class EcFeeder extends EcRunnble implements Runnable {
         int neededEcs =(int) Math.ceil(numberOfMsgs / ratio) - ManagerMain.ec2Count+1;
         System.out.println("we need to create "+ neededEcs);
         if (numberOfMsgs > 0 && neededEcs > 0) {
-            newEcs = ecManager.createEc2(neededEcs, Constants.UBUNTU16_BLANK, Constants.WORKER_USER_SCRIPT);
+            String userScript = Constants.WORKER_USER_SCRIPT;
+            userScript = userScript.replace("$1", workQueue);
+            userScript = userScript.replace("$2", ManagerMain.resultQueue);
+            newEcs = ecManager.createEc2(neededEcs, Constants.UBUNTU16_BLANK, userScript);
             if (newEcs != null) {
                 updateStatusMap(newEcs);
             }
@@ -95,17 +100,25 @@ public class EcFeeder extends EcRunnble implements Runnable {
     }
 
     private void packAndSend(String msgLine, String queueUrl, String clientId) {
-        String[] parts = msgLine.split("\t");
-        int index = this.taskMapping.get(clientId)!=null?this.taskMapping.get(clientId).size():0;
-        HashMap<String, String> attrebutes = new HashMap<>();
-        attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.TASK.name());
-        attrebutes.put(Constants.REQUEST_ID_FIELD, clientId);
-        attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
-        attrebutes.put(Constants.TASK_ID_FIELD, Integer.toString(index));
-        this.taskMapping.computeIfAbsent(clientId, k -> Collections.synchronizedList(new ArrayList<>()))
-                .add(new EcTask(clientId, parts[0], parts[1], null ,index));
-        qManager.sendMessage(createAttrs(attrebutes), queueUrl, msgLine);
-        numberOfMsgs++;
+        int index = this.taskMapping.get(clientId) != null ? this.taskMapping.get(clientId).size() : 0;
+        try {
+            String[] parts = msgLine.split("\t");
+            HashMap<String, String> attrebutes = new HashMap<>();
+            attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.TASK.name());
+            attrebutes.put(Constants.REQUEST_ID_FIELD, clientId);
+            attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
+            attrebutes.put(Constants.TASK_ID_FIELD, Integer.toString(index));
+            this.taskMapping.computeIfAbsent(clientId, k -> Collections.synchronizedList(new ArrayList<>()))
+                    .add(new EcTask(clientId, parts[0], parts[1], null ,index));
+            qManager.sendMessage(createAttrs(attrebutes), queueUrl, msgLine);
+        }
+        catch (Exception e){
+            this.taskMapping.computeIfAbsent(clientId, k -> Collections.synchronizedList(new ArrayList<>()))
+                    .add(new EcTask(clientId, null,  "ERROR PARSING COMMAND", null, index, true));
+        }
+        finally {
+            numberOfMsgs++;
+        }
     }
 
     private Iterator<String> downloadFromUrl(String url) {
