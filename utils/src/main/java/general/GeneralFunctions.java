@@ -3,6 +3,7 @@ package general;
 import aws.QueueManager;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 
 import javax.annotation.Nullable;
@@ -32,11 +33,13 @@ public class GeneralFunctions {
                         }
                         sleep(10000);
                     } catch (InterruptedException e) {
+                        System.out.println(ExceptionUtils.getStackTrace(e));
                         e.printStackTrace();
                     }
                 }
             }
             catch (Exception ex){
+                System.out.println(ExceptionUtils.getStackTrace(ex));
                 ex.printStackTrace();
             }
         }

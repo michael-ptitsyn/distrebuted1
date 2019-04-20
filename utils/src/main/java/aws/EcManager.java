@@ -7,6 +7,7 @@ import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
 import general.Constants;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import javax.annotation.Nullable;
 import java.io.UnsupportedEncodingException;
@@ -61,15 +62,17 @@ public class EcManager extends AwsManager {
             System.out.println("Launch instances: " + instances);
             return instances;
         } catch (AmazonServiceException ase) {
+            System.out.println(ExceptionUtils.getStackTrace(ase));
             handleErrors(ase);
         } catch (UnsupportedEncodingException e) {
+            System.out.println(ExceptionUtils.getStackTrace(e));
             e.printStackTrace();
         }
         return null;
     }
 
     public List<Instance> getNotStoped() {
-        return listEc2s().stream().filter(s -> s.getState().getCode()<32).collect(Collectors.toList());
+        return listEc2s().stream().filter(s -> s.getState().getCode() < 32).collect(Collectors.toList());
     }
 
     public List<Instance> getActiveEc2s() {
@@ -92,12 +95,25 @@ public class EcManager extends AwsManager {
                 }
             }
         } catch (AmazonServiceException ase) {
+            System.out.println(ExceptionUtils.getStackTrace(ase));
             handleErrors(ase);
         }
         return result;
     }
 
-    private
+    private Instance getEc2(String instanceId) {
+        try {
+            boolean done = false;
+            DescribeInstancesRequest request = new DescribeInstancesRequest();
+            request.withInstanceIds(instanceId);
+            DescribeInstancesResult response = ec2.describeInstances(request);
+            return response.getReservations().get(0).getInstances().get(0);
+        } catch (AmazonServiceException ase) {
+            System.out.println(ExceptionUtils.getStackTrace(ase));
+            handleErrors(ase);
+        }
+        return null;
+    }
 
     @Nullable
     public List<InstanceStateChange> terminateEc2(List<String> instanceIds) {
@@ -108,6 +124,7 @@ public class EcManager extends AwsManager {
             System.out.println("terminating instances: " + instances);
             return instances;
         } catch (AmazonServiceException ase) {
+            System.out.println(ExceptionUtils.getStackTrace(ase));
             handleErrors(ase);
             return null;
         }
@@ -133,5 +150,9 @@ public class EcManager extends AwsManager {
         DescribeInstancesResult result = ec2.describeInstances(request.withFilters(filter));
         List<Reservation> reservations = result.getReservations();
         return reservations.stream().flatMap(r -> r.getInstances().stream()).collect(Collectors.toList());
+    }
+
+    public static boolean isManager(Instance ec) {
+        return ec.getTags().stream().anyMatch(t -> t.getKey().equals(Constants.MANAGER_TAG) && t.getValue().equals("true"));
     }
 }

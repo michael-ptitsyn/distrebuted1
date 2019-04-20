@@ -41,9 +41,9 @@ public class ClientMain {
             toTerminate = true;
         }
         List<Instance> ecs = ecman.getNotStoped();
-        List<Instance> managers = ecs.stream().filter(ClientMain::isManager).collect(Collectors.toList());
+        List<Instance> managers = ecs.stream().filter(EcManager::isManager).collect(Collectors.toList());
         if (managers.isEmpty()) {
-            List<Instance> newManns = ecman.createEc2(1, Constants.UBUNTU16_BLANK, Constants.MANAGER_USER_SCRIPT);
+            List<Instance> newManns = ecman.createEc2(1, Constants.JAVA8IMG, Constants.MANAGER_USER_SCRIPT_SHORT);
             if (newManns == null) {
                 throw new RuntimeException("PROBLEM CREATING MANAGER");
             }
@@ -114,7 +114,7 @@ public class ClientMain {
                 String title = "RESULTS";
                 htmlString = htmlString.replace("$title", title);
                 htmlString = htmlString.replace("$content", StreamSupport.stream(lines.spliterator(), false)
-                        .reduce((s, c) -> s + "</br>"+ c ).get());
+                        .reduce((s, c) -> s + "</br>"+ c + "</br>" ).get());
                 File newHtmlFile = new File(outputName + ".html");
                 FileUtils.writeStringToFile(newHtmlFile, htmlString, "utf-8");
                 stop.setTrue();
@@ -128,9 +128,5 @@ public class ClientMain {
         } finally {
             queueM.deleteMsg(resultQueue, msg);
         }
-    }
-
-    private static boolean isManager(Instance ec) {
-        return ec.getTags().stream().anyMatch(t -> t.getKey().equals(Constants.MANAGER_TAG) && t.getValue().equals("true"));
     }
 }

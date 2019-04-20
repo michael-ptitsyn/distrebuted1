@@ -3,6 +3,7 @@ import aws.QueueManager;
 import aws.S3Client;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import general.Constants;
 import objects.EcRunnble;
 import objects.EcTask;
@@ -18,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static general.GeneralFunctions.createAttrs;
 
 public class EcFeeder extends EcRunnble implements Runnable {
-    private final Queue<Message> commandsQueue; //ManagerMain thread to feed queue
+    private Queue<Message> commandsQueue; //ManagerMain thread to feed queue
     private QueueManager qManager;
     private S3Client s3Client;
     private String workQueue;
@@ -82,10 +83,10 @@ public class EcFeeder extends EcRunnble implements Runnable {
         int neededEcs =(int) Math.ceil(numberOfMsgs / ratio) - ManagerMain.ec2Count+1;
         System.out.println("we need to create "+ neededEcs);
         if (numberOfMsgs > 0 && neededEcs > 0) {
-            String userScript = Constants.WORKER_USER_SCRIPT;
+            String userScript = Constants.WORKER_USER_SCRIPT_SHORT;
             userScript = userScript.replace("$1", workQueue);
             userScript = userScript.replace("$2", ManagerMain.resultQueue);
-            newEcs = ecManager.createEc2(neededEcs, Constants.UBUNTU16_BLANK, userScript);
+            newEcs = ecManager.createEc2(neededEcs, Constants.JAVA8IMG, userScript);
             if (newEcs != null) {
                 updateStatusMap(newEcs);
             }
@@ -108,13 +109,14 @@ public class EcFeeder extends EcRunnble implements Runnable {
             attrebutes.put(Constants.REQUEST_ID_FIELD, clientId);
             attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
             attrebutes.put(Constants.TASK_ID_FIELD, Integer.toString(index));
+            Map<String, MessageAttributeValue> attrs = createAttrs(attrebutes);
             this.taskMapping.computeIfAbsent(clientId, k -> Collections.synchronizedList(new ArrayList<>()))
-                    .add(new EcTask(clientId, parts[0], parts[1], null ,index));
-            qManager.sendMessage(createAttrs(attrebutes), queueUrl, msgLine);
+                    .add(new EcTask(clientId, parts[0], parts[1], null ,index, attrs));
+            qManager.sendMessage(attrs, queueUrl, msgLine);
         }
         catch (Exception e){
             this.taskMapping.computeIfAbsent(clientId, k -> Collections.synchronizedList(new ArrayList<>()))
-                    .add(new EcTask(clientId, null,  "ERROR PARSING COMMAND", null, index, true));
+                    .add(new EcTask(clientId, null,  "ERROR PARSING COMMAND"+ e, null, index, true));
         }
         finally {
             numberOfMsgs++;

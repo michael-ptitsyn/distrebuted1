@@ -1,7 +1,9 @@
+import aws.EcManager;
 import aws.QueueManager;
 import aws.S3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.sqs.model.Message;
+import com.google.common.collect.ImmutableList;
 import general.Constants;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -31,8 +33,12 @@ public class WorkerMain {
 
     public static void main(String[] args) {
         final MutableBoolean isTerminated = new MutableBoolean();
-        workQueue = queueM.getOrCreate("workQueue", args[0]);
-        resultQueue = queueM.getOrCreate("resultQueue", args[1]);
+        workQueue = queueM.getQueue(args[0]);
+        resultQueue = queueM.getQueue( args[1]);
+//        if(workQueue==null ||resultQueue==null){
+//            EcManager ecman = new EcManager();
+//            ecman.terminateEc2(ImmutableList.of(Constants.instanceId));
+//        }
         status = Constants.ec2Status.IDLE;
         WorkerPinger wPinger = new WorkerPinger(queueM, resultQueue);
         Thread pinger = new Thread(wPinger);
@@ -41,31 +47,59 @@ public class WorkerMain {
     }
 
     private static void handleMessage(Message msg) {
-        HashMap<String, String> attrebutes = new HashMap<>();
+        boolean msgDeleted = false;
         try {
             if (validateMsg(msg)) {
-                System.out.println("*******worker: " + msg.getBody());
+                System.out.println("Worker: received msg:" + msg.getBody());
+                sendWorkerMsg(Constants.MESSAGE_TYPE.TASK_START,
+                        msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue(),
+                        msg.getMessageAttributes().get(Constants.TASK_ID_FIELD).getStringValue(),
+                        "started work on task");
+                queueM.deleteMsg(workQueue, msg);
+                msgDeleted=true;
                 String url = solve(msg);
-                attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.TASK_RESULT.name());
-                attrebutes.put(Constants.REQUEST_ID_FIELD, msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue());
-                attrebutes.put(Constants.TASK_ID_FIELD, msg.getMessageAttributes().get(Constants.TASK_ID_FIELD).getStringValue());
-                attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
-                queueM.sendMessage(createAttrs(attrebutes), resultQueue, url);
+                sendWorkerMsg(Constants.MESSAGE_TYPE.TASK_RESULT,
+                        msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue(),
+                        msg.getMessageAttributes().get(Constants.TASK_ID_FIELD).getStringValue(),
+                        url);
                 status = Constants.ec2Status.WORKING;
             } else {
-                queueM.sendMessage(createAttrs(attrebutes), resultQueue, "BAD MSG FORMAT");
+                sendWorkerMsg(Constants.MESSAGE_TYPE.ERROR,
+                        msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue(),
+                        msg.getMessageAttributes().get(Constants.TASK_ID_FIELD).getStringValue(),
+                        "BAD MSG FORMAT");
             }
         } catch (Exception ex) {
+            System.out.println(ExceptionUtils.getStackTrace(ex));
             status = Constants.ec2Status.IDLE;
-            attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.ERROR.name());
-            attrebutes.put(Constants.TASK_ID_FIELD, msg.getMessageAttributes().get(Constants.TASK_ID_FIELD).getStringValue());
-            attrebutes.put(Constants.REQUEST_ID_FIELD, msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue());
-            queueM.sendMessage(createAttrs(attrebutes), resultQueue,   ExceptionUtils.getStackTrace(ex));
-        } finally {
-            queueM.deleteMsg(workQueue, msg);
+            sendWorkerMsg(Constants.MESSAGE_TYPE.ERROR,
+                    msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue(),
+                    msg.getMessageAttributes().get(Constants.TASK_ID_FIELD).getStringValue(),
+                    ExceptionUtils.getStackTrace(ex));
+        }finally {
+            if(!msgDeleted){
+                queueM.deleteMsg(workQueue, msg);
+            }
         }
     }
 
+    /*
+    *
+    *  attrebutes.put(Constants.TYPE_FIELD, Constants.MESSAGE_TYPE.TASK_RESULT.name());
+                attrebutes.put(Constants.REQUEST_ID_FIELD, msg.getMessageAttributes().get(Constants.REQUEST_ID_FIELD).getStringValue());
+                attrebutes.put(Constants.TASK_ID_FIELD, msg.getMessageAttributes().get(Constants.TASK_ID_FIELD).getStringValue());
+                attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
+    *
+    * */
+
+    public static void sendWorkerMsg(Constants.MESSAGE_TYPE type, String requestId, String taskId, String body) {
+        HashMap<String, String> attrebutes = new HashMap<>();
+        attrebutes.put(Constants.TYPE_FIELD, type.name());
+        attrebutes.put(Constants.REQUEST_ID_FIELD, requestId);
+        attrebutes.put(Constants.TASK_ID_FIELD, taskId);
+        attrebutes.put(Constants.ID_FIELD, Constants.instanceId);
+        queueM.sendMessage(createAttrs(attrebutes), resultQueue, body);
+    }
 
     public static String solve(Message msg) throws IOException {
         String toSolve = msg.getBody();

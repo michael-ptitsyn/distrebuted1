@@ -10,6 +10,7 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.*;
 import general.Constants;
+import objects.EcTask;
 import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 
 import javax.annotation.Nullable;
@@ -34,12 +35,31 @@ public class QueueManager extends AwsManager {
         if (qUrl!=null && qUrls.contains(qUrl))
             return qUrls.stream().filter(s -> s.equals(qUrl)).collect(Collectors.toList()).get(0);
         // Create a queue
-        System.out.println("Creating a new SQS queue called MyQueue.\n");
-        CreateQueueRequest createQueueRequest = new CreateQueueRequest("MyQueue" + UUID.randomUUID());
+        System.out.println("Creating a new SQS queue called "+Creationname+".\n");
+        CreateQueueRequest createQueueRequest = new CreateQueueRequest(Creationname + UUID.randomUUID());
         String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
         qUrls.add(myQueueUrl);
         return myQueueUrl;
+    }
 
+    public String getQueue(String qUrl) {
+        if (qUrls.contains(qUrl)) {
+            return qUrls.stream().filter(s -> s.equals(qUrl)).collect(Collectors.toList()).get(0);
+        }
+        int tries = Constants.TRIES_TO_GET_QUEUE;
+        while(tries>0){
+            qUrls = getQueues();
+            if (qUrls.contains(qUrl)) {
+                return qUrls.stream().filter(s -> s.equals(qUrl)).collect(Collectors.toList()).get(0);
+            }
+            tries--;
+            try {
+                Thread.sleep(Constants.THREAD_SLEEP);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        throw new RuntimeException("can't create queue");
     }
 
     public List<Message> getMessage(@Nullable String queueName, @Nullable String queueUrl, boolean create) {
@@ -67,6 +87,14 @@ public class QueueManager extends AwsManager {
         sendMessageRequest.withMessageBody(body);
         sendMessageRequest.withQueueUrl(url);
         sendMessageRequest.withMessageAttributes(attributes);
+        return sqs.sendMessage(sendMessageRequest);
+    }
+
+    public SendMessageResult sendMessage(EcTask task, String url) {
+        SendMessageRequest sendMessageRequest = new SendMessageRequest();
+        sendMessageRequest.withMessageBody(task.getBody());
+        sendMessageRequest.withQueueUrl(url);
+        sendMessageRequest.withMessageAttributes(task.getAttributes());
         return sqs.sendMessage(sendMessageRequest);
     }
 
