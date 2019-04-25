@@ -4,6 +4,7 @@ import java.util.List;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import com.amazonaws.services.sqs.AmazonSQS;
@@ -60,6 +61,41 @@ public class QueueManager extends AwsManager {
             }
         }
         throw new RuntimeException("can't create queue");
+    }
+
+    public String getOrCreateMainQueue(){
+        String name_prefix = "main";
+        ListQueuesResult lq_result = sqs.listQueues(new ListQueuesRequest(name_prefix));
+        if(lq_result.getQueueUrls().size()==0){
+            return getOrCreate("mainQueue", null);
+        }
+        if(lq_result.getQueueUrls().size()>1){
+            System.out.println("WARNING MORE THEN ONE MAIN QUEUE UNDEFINED BEHAVIOUR");
+        }
+        return lq_result.getQueueUrls().get(0);
+    }
+
+    public String getMainQueueUrl() throws TimeoutException {
+        int tries = Constants.TRIES_TO_GET_QUEUE;
+        String name_prefix = "main";
+        ListQueuesResult lq_result = sqs.listQueues(new ListQueuesRequest(name_prefix));
+        while(tries>0){
+            System.out.println("Queue URLs with prefix: " + name_prefix);
+            if(lq_result.getQueueUrls().size()>0){
+                if(lq_result.getQueueUrls().size()>1){
+                    System.out.println("WARNING MORE THEN ONE MAIN QUEUE UNDEFINED BEHAVIOUR");
+                }
+                System.out.println("GOT QUEUE ON "+tries+"'D try");
+               return  lq_result.getQueueUrls().get(0);
+            }
+            tries--;
+            try {
+                Thread.sleep(Constants.THREAD_SLEEP);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        throw new TimeoutException("can't get queue");
     }
 
     public List<Message> getMessage(@Nullable String queueName, @Nullable String queueUrl, boolean create) {

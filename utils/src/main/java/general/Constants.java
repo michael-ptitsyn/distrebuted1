@@ -56,28 +56,28 @@ public class Constants {
     public static final String WORKER_USER_SCRIPT = "#!/bin/bash\n" +
             "apt update -y\n"+
             "apt install openjdk-8-jdk -y\n" +
-            "mkdir /home/ubuntu/michael\n" +
-            "cd /home/ubuntu/michael\n"+
+            "mkdir /home/ubuntu/distrebuted\n" +
+            "cd /home/ubuntu/distrebuted\n"+
             "wget https://s3.amazonaws.com/michael-dror-distrebuted/public/worker.jar\n"+
             "java -jar worker.jar $1 $2 > output";
 
     public static final String WORKER_USER_SCRIPT_SHORT = "#!/bin/bash\n" +
-            "mkdir /home/ubuntu/michael\n" +
-            "cd /home/ubuntu/michael\n"+
+            "mkdir /home/ubuntu/distrebuted\n" +
+            "cd /home/ubuntu/distrebuted\n"+
             "wget https://s3.amazonaws.com/michael-dror-distrebuted/public/worker.jar\n"+
             "java -jar worker.jar $1 $2 > output";
 
     public static final String MANAGER_USER_SCRIPT = "#!/bin/bash\n" +
             "apt update -y\n"+
             "apt install openjdk-8-jdk -y\n" +
-            "mkdir /home/ubuntu/michael\n" +
-            "cd /home/ubuntu/michael\n"+
+            "mkdir /home/ubuntu/distrebuted\n" +
+            "cd /home/ubuntu/distrebuted\n"+
             "wget https://s3.amazonaws.com/michael-dror-distrebuted/public/manager.jar\n"+
             "java -jar manager.jar > output";
 
     public static final String MANAGER_USER_SCRIPT_SHORT = "#!/bin/bash\n" +
-            "mkdir /home/ubuntu/michael\n" +
-            "cd /home/ubuntu/michael\n"+
+            "mkdir /home/ubuntu/distrebuted\n" +
+            "cd /home/ubuntu/distrebuted\n"+
             "wget https://s3.amazonaws.com/michael-dror-distrebuted/public/manager.jar\n"+
             "java -jar manager.jar > output";
 

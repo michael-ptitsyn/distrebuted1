@@ -9,6 +9,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -29,17 +30,6 @@ public class ClientMain {
     public static MutableBoolean stop = new MutableBoolean(false);
 
     public static void main(String[] args) {
-        File inputFile = new File(args[0]);
-        System.out.println(ANSI_GREEN + "uploading file to s3" + ANSI_GREEN);
-        s3client.uploadFile(Constants.BUCKET_NAME, Constants.PUBLIC_FOLDER + args[0], inputFile);
-        String inputUrl = s3client.getUrl(Constants.BUCKET_NAME, Constants.PUBLIC_FOLDER + args[0]).toString();
-        outputName = args[1];
-        System.out.println(ANSI_GREEN + "the url is:" + inputUrl + ANSI_GREEN);
-        mainQueue = queueM.getOrCreate("mainQueue", Constants.MAINQUEUE);
-
-        if (args.length > 3 && args[3].equals("terminate")) {
-            toTerminate = true;
-        }
         List<Instance> ecs = ecman.getNotStoped();
         List<Instance> managers = ecs.stream().filter(EcManager::isManager).collect(Collectors.toList());
         if (managers.isEmpty()) {
@@ -55,6 +45,20 @@ public class ClientMain {
             System.out.println(ANSI_GREEN + "found manager" + ANSI_GREEN);
         } else {
             throw new RuntimeException("INTERNAL PROBLEM MORE THEN ONE MANAGER");
+        }
+        File inputFile = new File(args[0]);
+        System.out.println(ANSI_GREEN + "uploading file to s3" + ANSI_GREEN);
+        s3client.uploadFile(Constants.BUCKET_NAME, Constants.PUBLIC_FOLDER + args[0], inputFile);
+        String inputUrl = s3client.getUrl(Constants.BUCKET_NAME, Constants.PUBLIC_FOLDER + args[0]).toString();
+        outputName = args[1];
+        System.out.println(ANSI_GREEN + "the url is:" + inputUrl + ANSI_GREEN);
+        try {
+            mainQueue = queueM.getMainQueueUrl();
+        } catch (TimeoutException e) {
+            throw new RuntimeException("CANT GET MAIN QUEUE!!!!!!!!");
+        }
+        if (args.length > 3 && args[3].equals("terminate")) {
+            toTerminate = true;
         }
         initSequence();
         listeningloop(ClientMain::handleHandShake, resultQueue, stop, queueM, () -> System.out.println(ANSI_GREEN + "WAIT TO HAND-SHAKE RESPONSE" + ANSI_GREEN));

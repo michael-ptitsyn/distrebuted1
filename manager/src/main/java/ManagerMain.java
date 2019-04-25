@@ -46,15 +46,14 @@ public class ManagerMain {
                 File yourFile = new File("output");
                 yourFile.createNewFile(); // if file already exists will do nothing
                 PrintStream o = new PrintStream(yourFile);
-                System.setOut(o);
+               // System.setOut(o);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
             queueM = new QueueManager();
-            mainQueue = getQueue("mainQueue", Constants.MAINQUEUE);
+            mainQueue = queueM.getOrCreateMainQueue();//getQueue("mainQueue", Constants.MAINQUEUE);
             workQueue = getQueue("workQueue", Constants.WORKQUEUE);
             resultQueue = getQueue("resultQueue", Constants.RESULT_QUEUE);
             isTerminated.setFalse();
