@@ -43,14 +43,14 @@ public class ManagerMain {
     public static void main(String[] args) {
         try {
             try {
-                File yourFile = new File("output");
-                yourFile.createNewFile(); // if file already exists will do nothing
-                PrintStream o = new PrintStream(yourFile);
-               // System.setOut(o);
+                File managerLog = new File("output");
+                managerLog.createNewFile();
+                PrintStream o = new PrintStream(managerLog);
+                System.setOut(o);
             } catch (FileNotFoundException e) {
-                e.printStackTrace();
+
             } catch (IOException e) {
-                e.printStackTrace();
+
             }
             queueM = new QueueManager();
             mainQueue = queueM.getOrCreateMainQueue();//getQueue("mainQueue", Constants.MAINQUEUE);

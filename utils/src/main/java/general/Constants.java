@@ -15,8 +15,8 @@ public class Constants {
     public static final String MAINQUEUE="https://sqs.us-east-1.amazonaws.com/993541871317/mainQueue";
     public static final String WORKQUEUE="https://sqs.us-east-1.amazonaws.com/993541871317/MyQueue32e6f304-f5e2-453e-adc6-c687428d438b";
     public static final String RESULT_QUEUE="https://sqs.us-east-1.amazonaws.com/993541871317/MyQueue119b949f-1461-4130-a018-7d4a0ebe6aac";
-    public static final int THREAD_SLEEP=3000;
-    public static final int TRIES_TO_GET_QUEUE=10;
+    public static final int THREAD_SLEEP=5000;
+    public static final int TRIES_TO_GET_QUEUE=30;
     public static final String MANAGER_TAG="manager";
     public static final String BUCKET_NAME="michael-dror-distrebuted";
     public static final int DEFAULT_MSG_COMP_RATION=50;

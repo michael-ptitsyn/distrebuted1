@@ -118,6 +118,7 @@ public class ClientMain {
                 String title = "RESULTS";
                 htmlString = htmlString.replace("$title", title);
                 htmlString = htmlString.replace("$content", StreamSupport.stream(lines.spliterator(), false)
+                        .map(ClientMain::strToHtml)
                         .reduce((s, c) -> s + "</br>"+ c + "</br>" ).get());
                 File newHtmlFile = new File(outputName + ".html");
                 FileUtils.writeStringToFile(newHtmlFile, htmlString, "utf-8");
@@ -132,5 +133,14 @@ public class ClientMain {
         } finally {
             queueM.deleteMsg(resultQueue, msg);
         }
+    }
+
+    private static String strToHtml(String msgLine){
+        String[] parts = msgLine.split("\t");
+        if(parts.length<3)
+            return msgLine;
+        if(msgLine.toLowerCase().contains("exception"))
+            return parts[0]+": "+"<a href="+parts[1]+"> input </a> ERROR-"+ parts[2].substring(0,20)+"...";
+        return parts[0]+": "+"<a href="+parts[1]+"> input </a>" + "<a href="+parts[2]+"> result </a>";
     }
 }

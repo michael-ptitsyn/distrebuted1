@@ -49,7 +49,8 @@ public class QueueManager extends AwsManager {
         }
         int tries = Constants.TRIES_TO_GET_QUEUE;
         while(tries>0){
-            qUrls = getQueues();
+            System.out.println("try to get queue" + qUrl);
+            qUrls = sqs.listQueues().getQueueUrls();
             if (qUrls.contains(qUrl)) {
                 return qUrls.stream().filter(s -> s.equals(qUrl)).collect(Collectors.toList()).get(0);
             }
@@ -76,11 +77,13 @@ public class QueueManager extends AwsManager {
     }
 
     public String getMainQueueUrl() throws TimeoutException {
-        int tries = Constants.TRIES_TO_GET_QUEUE;
+        int tries = 1;
         String name_prefix = "main";
-        ListQueuesResult lq_result = sqs.listQueues(new ListQueuesRequest(name_prefix));
-        while(tries>0){
-            System.out.println("Queue URLs with prefix: " + name_prefix);
+        ListQueuesRequest lsrequest = new ListQueuesRequest(name_prefix);
+        ListQueuesResult lq_result;
+        while(tries<=Constants.TRIES_TO_GET_QUEUE){
+            System.out.println("Looking for Queue URLs with prefix: " + name_prefix);
+            lq_result = sqs.listQueues(lsrequest);
             if(lq_result.getQueueUrls().size()>0){
                 if(lq_result.getQueueUrls().size()>1){
                     System.out.println("WARNING MORE THEN ONE MAIN QUEUE UNDEFINED BEHAVIOUR");
@@ -88,7 +91,7 @@ public class QueueManager extends AwsManager {
                 System.out.println("GOT QUEUE ON "+tries+"'D try");
                return  lq_result.getQueueUrls().get(0);
             }
-            tries--;
+            tries++;
             try {
                 Thread.sleep(Constants.THREAD_SLEEP);
             } catch (InterruptedException e) {

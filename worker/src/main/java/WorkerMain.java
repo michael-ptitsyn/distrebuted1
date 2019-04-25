@@ -32,18 +32,40 @@ public class WorkerMain {
     private static S3Client s3 = new S3Client();
 
     public static void main(String[] args) {
-        final MutableBoolean isTerminated = new MutableBoolean();
-        workQueue = queueM.getQueue(args[0]);
-        resultQueue = queueM.getQueue( args[1]);
+
+        try {
+            try {
+                File yourFile = new File("output");
+                boolean r = yourFile.createNewFile(); // if file already exists will do nothing
+                PrintStream o = new PrintStream(yourFile);
+                System.setOut(o);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.out.println("Worker is starting");
+            final MutableBoolean isTerminated = new MutableBoolean();
+            workQueue = queueM.getQueue(args[0]);
+            resultQueue = queueM.getQueue(args[1]);
 //        if(workQueue==null ||resultQueue==null){
 //            EcManager ecman = new EcManager();
 //            ecman.terminateEc2(ImmutableList.of(Constants.instanceId));
 //        }
-        status = Constants.ec2Status.IDLE;
-        WorkerPinger wPinger = new WorkerPinger(queueM, resultQueue);
-        Thread pinger = new Thread(wPinger);
-        pinger.start();
-        listeningloop(WorkerMain::handleMessage, workQueue, isTerminated, queueM, () -> status = Constants.ec2Status.IDLE);
+            status = Constants.ec2Status.IDLE;
+            WorkerPinger wPinger = new WorkerPinger(queueM, resultQueue);
+            Thread pinger = new Thread(wPinger);
+            System.out.println("Starting pinger");
+            pinger.start();
+            listeningloop(WorkerMain::handleMessage, workQueue, isTerminated, queueM, () -> status = Constants.ec2Status.IDLE);
+        }
+        catch (Exception e){
+            System.out.println(ExceptionUtils.getStackTrace(e));
+        }
+        finally {
+            File file = new File("output");
+            s3.uploadFile(Constants.BUCKET_NAME,"worker_log", file);
+        }
     }
 
     private static void handleMessage(Message msg) {

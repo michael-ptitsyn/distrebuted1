@@ -15,7 +15,7 @@ public class AwsManager {
             this.credentialsProvider  = new AWSStaticCredentialsProvider(new ProfileCredentialsProvider().getCredentials());
         }
         catch (IllegalArgumentException ex){
-            System.out.println(ExceptionUtils.getStackTrace(ex));
+            //System.out.println(ExceptionUtils.getStackTrace(ex));
             this.credentialsProvider=new InstanceProfileCredentialsProvider(true);
         }
     }
