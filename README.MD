@@ -73,7 +73,7 @@
 
 ## Debug:
 1. manager's run log will be avaliable in your s3 bucket (root dir, not public) after manager trminates
-2. for workers you can log on to ec2 using putty (or ssh on linux) and your private key (4), cd to ~/distrebuted/ , and read the output file   
+2. for workers you can log on to ec2 using putty (or ssh on linux) and your private key (5), cd to ~/distrebuted/ , and read the output file   
 
 ## Design
 1. Queues:
