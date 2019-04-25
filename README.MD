@@ -77,33 +77,33 @@
 
 ## Design
 1. Queues:
-  - mainQueue static queue, must run all the time, through this queue clients astablish heandShake and send their requests
-  - workqueue created/terminated by the manager, we use this queue to post tasks to thw workers
-  - result queue created/terminated by the manaer, we use is to recieve status updates, results and tasks Inits  from workers
-  - clientResultQueue created/terminated by each client, we use it to recieve the results from the manager
+    - mainQueue static queue, must run all the time, through this queue clients astablish heandShake and send their requests
+    - workqueue created/terminated by the manager, we use this queue to post tasks to thw workers
+    - result queue created/terminated by the manaer, we use is to recieve status updates, results and tasks Inits  from workers
+    - clientResultQueue created/terminated by each client, we use it to recieve the results from the manager
 2. the client flow:
-  - checks whether a manager is exist is not creates a new one (we mark each manager with a special tag)
-  - creates a new queue (client result queue)
-  - sends the client result queue url via the mainQueue to the manager
-  - after hendshak, working as insructed in the task
+    - checks whether a manager is exist is not creates a new one (we mark each manager with a special tag)
+    - creates a new queue (client result queue)
+    - sends the client result queue url via the mainQueue to the manager
+    - after hendshak, working as insructed in the task
 3. the manager flow:
-  - has 4 running threads - mainthread, ECfeeder, EClistener, ECrefreshe for more info see **important questions** section
-  - apone termination waits for all tasks to be done, and for all workers to send IDLE STATUS
-  - task managment - each client/worker have a unique request id, each msg marked with this unique request id
-  the manager stores all the taskes in a hash map where the key is the request id and the val is a list of all the subtasks 
-  each subtask is an ECtask object, ech Ectask object get translated into a msg with the following attrebutes:
-    - client request id 
-    - task id - the task index in the list under the request id key
-    - MSG TYPE - TASK
-4.the worker flow:
-  - has 2 running threads - mainthread, pinger thread.
-  - mainthread incharge of doing the actual job
-  - pinger sends a status updates to the manager 
-  - the statuses are: WORKING, IDLE, DEAD
+    - has 4 running threads - mainthread, ECfeeder, EClistener, ECrefreshe for more info see **important questions** section
+    - apone termination waits for all tasks to be done, and for all workers to send IDLE STATUS
+    - task managment - each client/worker have a unique request id, each msg marked with this unique request id.
+    The manager stores all the taskes in a hash map where the key is the request id and the val is a list of all the subtasks. 
+    Each subtask is an ECtask object, each Ectask object is translated into a msg with the following attrebutes:
+      - client request id 
+      - task id - the task index in the list under the request id key
+      - MSG TYPE - TASK
+4. the worker flow:
+    - has 2 running threads - mainthread, pinger thread.
+    - mainthread incharge of doing the actual job
+    - pinger sends a status updates to the manager 
+    - the statuses are: WORKING, IDLE, DEAD
 5. the heandShake:
-  - when a client app starts the app, sends a msg via the main queue, the msg contains the clients Result queue url (known only to the client)
-  - when a manger recieves the msg the manager sendes INIT MSG using the clients result queue (by the url recived)
-  - when a client recieves the INIT msg using the clients result queue the handshake is finished
+    - when a client app starts the app, sends a msg via the main queue, the msg contains the clients Result queue url (known only to the client)
+    - when a manger recieves the msg the manager sendes INIT MSG using the clients result queue (by the url recived)
+    - when a client recieves the INIT msg using the clients result queue the handshake is finished
   
   
 ## important questions:
